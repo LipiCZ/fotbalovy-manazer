@@ -1,100 +1,499 @@
 {
   "_note": "Všechny laditelné konstanty. Hodnoty jsou herní odhady kalibrované podle docs/design.md (sekce 5, 11, 12), ne reálná data.",
-
   "rating": {
     "_note": "CEL = ts * TS + fs * FS. Váhy podle hlavní pozice hráče; výchozí 50/50 (design, sekce 11).",
     "byPosition": {
-      "GK": { "ts": 0.5, "fs": 0.5 },
-      "CB": { "ts": 0.5, "fs": 0.5 },
-      "LB": { "ts": 0.5, "fs": 0.5 },
-      "RB": { "ts": 0.5, "fs": 0.5 },
-      "DM": { "ts": 0.5, "fs": 0.5 },
-      "CM": { "ts": 0.5, "fs": 0.5 },
-      "AM": { "ts": 0.5, "fs": 0.5 },
-      "LM": { "ts": 0.5, "fs": 0.5 },
-      "RM": { "ts": 0.5, "fs": 0.5 },
-      "LW": { "ts": 0.5, "fs": 0.5 },
-      "RW": { "ts": 0.5, "fs": 0.5 },
-      "ST": { "ts": 0.5, "fs": 0.5 }
+      "GK": {"ts": 0.5, "fs": 0.5},
+      "CB": {"ts": 0.5, "fs": 0.5},
+      "LB": {"ts": 0.5, "fs": 0.5},
+      "RB": {"ts": 0.5, "fs": 0.5},
+      "DM": {"ts": 0.5, "fs": 0.5},
+      "CM": {"ts": 0.5, "fs": 0.5},
+      "AM": {"ts": 0.5, "fs": 0.5},
+      "LM": {"ts": 0.5, "fs": 0.5},
+      "RM": {"ts": 0.5, "fs": 0.5},
+      "LW": {"ts": 0.5, "fs": 0.5},
+      "RW": {"ts": 0.5, "fs": 0.5},
+      "ST": {"ts": 0.5, "fs": 0.5}
     }
   },
-
+  "attributes": {
+    "_note": "TS a FS = vážený průměr atributů podle pozice (design, sekce 11; váhy útočníka přesně podle designu, ostatní návrh). Atributy s váhou 0 se do TS/FS nepočítají a generátor je dává nižší.",
+    "weights": {
+      "GK": {
+        "tech": {"reflexes": 0.3, "handling": 0.2, "oneOnOne": 0.2, "gkPositioning": 0.2, "distribution": 0.1},
+        "phys": {
+          "agility": 0.35,
+          "jumping": 0.25,
+          "acceleration": 0.15,
+          "strength": 0.15,
+          "pace": 0.05,
+          "stamina": 0.05
+        }
+      },
+      "CB": {
+        "tech": {
+          "tackling": 0.3,
+          "positioning": 0.25,
+          "heading": 0.2,
+          "passing": 0.1,
+          "decisions": 0.1,
+          "technique": 0.05
+        },
+        "phys": {
+          "strength": 0.3,
+          "jumping": 0.25,
+          "pace": 0.2,
+          "acceleration": 0.1,
+          "stamina": 0.1,
+          "agility": 0.05
+        }
+      },
+      "LB": {
+        "tech": {
+          "tackling": 0.25,
+          "positioning": 0.2,
+          "crossing": 0.2,
+          "passing": 0.15,
+          "technique": 0.1,
+          "decisions": 0.1
+        },
+        "phys": {"pace": 0.3, "stamina": 0.25, "acceleration": 0.2, "agility": 0.15, "strength": 0.1}
+      },
+      "RB": {
+        "tech": {
+          "tackling": 0.25,
+          "positioning": 0.2,
+          "crossing": 0.2,
+          "passing": 0.15,
+          "technique": 0.1,
+          "decisions": 0.1
+        },
+        "phys": {"pace": 0.3, "stamina": 0.25, "acceleration": 0.2, "agility": 0.15, "strength": 0.1}
+      },
+      "DM": {
+        "tech": {"tackling": 0.3, "positioning": 0.2, "passing": 0.2, "decisions": 0.2, "technique": 0.1},
+        "phys": {
+          "stamina": 0.3,
+          "strength": 0.3,
+          "pace": 0.1,
+          "acceleration": 0.1,
+          "agility": 0.1,
+          "jumping": 0.1
+        }
+      },
+      "CM": {
+        "tech": {
+          "passing": 0.3,
+          "decisions": 0.2,
+          "technique": 0.2,
+          "positioning": 0.1,
+          "tackling": 0.1,
+          "finishing": 0.1
+        },
+        "phys": {
+          "stamina": 0.35,
+          "agility": 0.15,
+          "strength": 0.15,
+          "pace": 0.15,
+          "acceleration": 0.15,
+          "jumping": 0.05
+        }
+      },
+      "AM": {
+        "tech": {"passing": 0.25, "technique": 0.25, "decisions": 0.2, "finishing": 0.2, "setPieces": 0.1},
+        "phys": {"agility": 0.3, "acceleration": 0.25, "pace": 0.2, "stamina": 0.15, "strength": 0.1}
+      },
+      "LM": {
+        "tech": {
+          "crossing": 0.25,
+          "passing": 0.2,
+          "technique": 0.2,
+          "decisions": 0.1,
+          "tackling": 0.1,
+          "finishing": 0.1,
+          "positioning": 0.05
+        },
+        "phys": {"stamina": 0.3, "pace": 0.3, "acceleration": 0.2, "agility": 0.2}
+      },
+      "RM": {
+        "tech": {
+          "crossing": 0.25,
+          "passing": 0.2,
+          "technique": 0.2,
+          "decisions": 0.1,
+          "tackling": 0.1,
+          "finishing": 0.1,
+          "positioning": 0.05
+        },
+        "phys": {"stamina": 0.3, "pace": 0.3, "acceleration": 0.2, "agility": 0.2}
+      },
+      "LW": {
+        "tech": {"technique": 0.3, "finishing": 0.25, "crossing": 0.2, "passing": 0.15, "decisions": 0.1},
+        "phys": {"pace": 0.3, "acceleration": 0.3, "agility": 0.25, "stamina": 0.15}
+      },
+      "RW": {
+        "tech": {"technique": 0.3, "finishing": 0.25, "crossing": 0.2, "passing": 0.15, "decisions": 0.1},
+        "phys": {"pace": 0.3, "acceleration": 0.3, "agility": 0.25, "stamina": 0.15}
+      },
+      "ST": {
+        "tech": {"finishing": 0.35, "positioning": 0.25, "technique": 0.2, "heading": 0.1, "passing": 0.1},
+        "phys": {"pace": 0.3, "acceleration": 0.25, "strength": 0.25, "jumping": 0.1, "stamina": 0.1}
+      }
+    },
+    "generation": {
+      "_note": "Atributy důležité pro pozici = cílové TS/FS + šum; nedůležité = cíl − penalizace. Brankáři mají nízké hráčské technické atributy, hráči v poli nízké brankářské.",
+      "relevantSd": 5,
+      "irrelevantPenalty": 12,
+      "irrelevantSd": 7,
+      "gkOutfieldTechPenalty": 30,
+      "outfieldGkTech": {"min": 1, "max": 18}
+    },
+    "hidden": {
+      "_note": "Skryté atributy 1–99: normální rozdělení + posun za každý rok věku nad 22 let.",
+      "adaptation": {"mean": 50, "sd": 15, "perYearOver22": 0},
+      "professionalism": {"mean": 55, "sd": 15, "perYearOver22": 0.5},
+      "consistency": {"mean": 50, "sd": 14, "perYearOver22": 0.8},
+      "injuryProneness": {"mean": 40, "sd": 15, "perYearOver22": 0.6}
+    },
+    "leadership": {"mean": 40, "sd": 15, "perYearOver22": 1.5}
+  },
   "squad": {
     "_note": "Šablona kádru podle úrovně soutěže: pro každou hlavní pozici seznam rolí. S = základní sestava (11), R = rotace, Y = mladík/perspektiva.",
     "templateByLevel": {
       "1": {
-        "GK": ["S", "R", "Y"], "CB": ["S", "S", "R", "Y"], "LB": ["S", "R"], "RB": ["S", "R"],
-        "DM": ["S", "R"], "CM": ["S", "R", "Y"], "AM": ["S"], "LW": ["S", "Y"], "RW": ["S", "R"], "ST": ["S", "R", "Y"]
+        "GK": ["S", "R", "Y"],
+        "CB": ["S", "S", "R", "Y"],
+        "LB": ["S", "R"],
+        "RB": ["S", "R"],
+        "DM": ["S", "R"],
+        "CM": ["S", "R", "Y"],
+        "AM": ["S"],
+        "LW": ["S", "Y"],
+        "RW": ["S", "R"],
+        "ST": ["S", "R", "Y"]
       },
       "2": {
-        "GK": ["S", "R", "Y"], "CB": ["S", "S", "R", "Y"], "LB": ["S", "R"], "RB": ["S", "R"],
-        "DM": ["S", "R"], "CM": ["S", "Y"], "AM": ["S"], "LW": ["S", "Y"], "RW": ["S", "R"], "ST": ["S", "R"]
+        "GK": ["S", "R", "Y"],
+        "CB": ["S", "S", "R", "Y"],
+        "LB": ["S", "R"],
+        "RB": ["S", "R"],
+        "DM": ["S", "R"],
+        "CM": ["S", "Y"],
+        "AM": ["S"],
+        "LW": ["S", "Y"],
+        "RW": ["S", "R"],
+        "ST": ["S", "R"]
       },
       "3": {
-        "GK": ["S", "R"], "CB": ["S", "S", "R", "Y"], "LB": ["S", "R"], "RB": ["S"],
-        "DM": ["S", "R"], "CM": ["S", "Y"], "AM": ["S"], "LW": ["S"], "RW": ["S", "R"], "ST": ["S", "R", "Y"]
+        "GK": ["S", "R"],
+        "CB": ["S", "S", "R", "Y"],
+        "LB": ["S", "R"],
+        "RB": ["S"],
+        "DM": ["S", "R"],
+        "CM": ["S", "Y"],
+        "AM": ["S"],
+        "LW": ["S"],
+        "RW": ["S", "R"],
+        "ST": ["S", "R", "Y"]
       }
     },
     "relatedPositions": {
-      "GK": [], "CB": ["DM", "RB", "LB"], "LB": ["LM", "LW", "RB"], "RB": ["RM", "RW", "LB"],
-      "DM": ["CM", "CB"], "CM": ["DM", "AM"], "AM": ["CM", "ST", "LW", "RW"],
-      "LM": ["LW", "LB", "CM"], "RM": ["RW", "RB", "CM"], "LW": ["LM", "RW", "AM"], "RW": ["RM", "LW", "AM"],
+      "GK": [],
+      "CB": ["DM", "RB", "LB"],
+      "LB": ["LM", "LW", "RB"],
+      "RB": ["RM", "RW", "LB"],
+      "DM": ["CM", "CB"],
+      "CM": ["DM", "AM"],
+      "AM": ["CM", "ST", "LW", "RW"],
+      "LM": ["LW", "LB", "CM"],
+      "RM": ["RW", "RB", "CM"],
+      "LW": ["LM", "RW", "AM"],
+      "RW": ["RM", "LW", "AM"],
       "ST": ["AM", "LW", "RW"]
     },
     "secondPositionChance": 0.55,
     "thirdPositionChance": 0.2
   },
-
   "strength": {
     "_note": "Průměrný CEL základní sestavy = základ úrovně + posun podle velikosti klubu. Cíle z designu: hráč 3. ligy 45–55, kapitán průměrného prvoligového týmu ~68, opory Slavie/Sparty 75–80.",
-    "starterMeanByLevel": { "1": 64, "2": 57, "3": 50 },
-    "sizeOffset": { "1": -3, "2": -1.5, "3": 0, "4": 3, "5": 7 },
-    "reserveOffsetByParentSize": { "1": -3, "2": -2, "3": -1, "4": 0, "5": 1 },
+    "starterMeanByLevel": {"1": 64, "2": 57, "3": 50},
+    "sizeOffset": {"1": -3, "2": -1.5, "3": 0, "4": 3, "5": 7},
+    "reserveOffsetByParentSize": {"1": -3, "2": -2, "3": -1, "4": 0, "5": 1},
     "tiers": {
-      "S": { "celOffset": 0, "celSd": 3 },
-      "R": { "celOffset": -5, "celSd": 3.5 },
-      "Y": { "celOffset": -11, "celSd": 3 }
+      "S": {"celOffset": 0, "celSd": 3},
+      "R": {"celOffset": -5, "celSd": 3.5},
+      "Y": {"celOffset": -11, "celSd": 3}
     },
     "minAttribute": 1,
     "maxAttribute": 99
   },
-
   "age": {
     "_note": "Věk k 1. 7. sezóny podle role. Rezervní (B/C) týmy jsou výrazně mladší.",
     "first": {
-      "S": { "mean": 27, "sd": 3.5, "min": 19, "max": 35 },
-      "R": { "mean": 25, "sd": 4.5, "min": 18, "max": 35 },
-      "Y": { "mean": 18.5, "sd": 1, "min": 17, "max": 20 }
+      "S": {"mean": 27, "sd": 3.5, "min": 19, "max": 35},
+      "R": {"mean": 25, "sd": 4.5, "min": 18, "max": 35},
+      "Y": {"mean": 18.5, "sd": 1, "min": 17, "max": 20}
     },
     "reserve": {
-      "S": { "mean": 21, "sd": 2, "min": 18, "max": 30 },
-      "R": { "mean": 19.5, "sd": 1.5, "min": 17, "max": 24 },
-      "Y": { "mean": 17.5, "sd": 0.6, "min": 17, "max": 18 }
+      "S": {"mean": 21, "sd": 2, "min": 18, "max": 30},
+      "R": {"mean": 19.5, "sd": 1.5, "min": 17, "max": 24},
+      "Y": {"mean": 17.5, "sd": 0.6, "min": 17, "max": 18}
     }
   },
-
   "profile": {
     "_note": "Rozdělení CEL na TS a FS. tsMinusCelSd = rozptyl typu hráče (technik vs. atlet). Mladí do 23 let mají FS nižší (dozrávání, design sekce 11).",
     "tsMinusCelSd": 3.5,
     "youthTechBiasPerYear": 0.8,
     "youthTechBiasUntilAge": 23
   },
-
   "potential": {
     "_note": "POT = CEL + mezera; mezera závisí na věku (lineární interpolace mezi body). Design: POT 85+ zhruba jednou za 3 roky v celé republice.",
     "gapByAge": [[17, 14], [19, 10], [21, 6.5], [23, 4], [25, 2], [27, 1], [29, 0]],
     "gapSd": 3.5,
     "max": 95
   },
-
   "simpleResults": {
     "_note": "Fáze 1: náhodné výsledky (Poisson). Silnější tým (průměrný CEL nejlepší jedenáctky) dostane bonus ke gólovému průměru, lineárně až do maxBonus při rozdílu celDiffForMaxBonus. Cíle: 1. liga ~2,5 gólu/zápas, MSFL ~3,2 (design, sekce 12).",
     "goalsByLevel": {
-      "1": { "home": 1.35, "away": 1.05 },
-      "2": { "home": 1.48, "away": 1.17 },
-      "3": { "home": 1.72, "away": 1.38 }
+      "1": {"home": 1.35, "away": 1.05},
+      "2": {"home": 1.48, "away": 1.17},
+      "3": {"home": 1.72, "away": 1.38}
     },
-    "strengthBonus": { "maxBonus": 0.2, "celDiffForMaxBonus": 8 },
+    "strengthBonus": {"maxBonus": 0.2, "celDiffForMaxBonus": 8},
     "teamStrengthTopN": 11
+  },
+  "match": {
+    "_note": "Simulace zápasu minutu po minutě (design, sekce 12). Simulují se šance, ne fyzika hřiště. Hodnoty jsou herní odhady laděné kalibrací (npm run calibrate).",
+    "halfMinutes": 45,
+    "addedTime": {"firstHalf": [1, 3], "secondHalf": [2, 6]},
+    "positionFit": {"natural": 1.0, "related": 0.9, "foreign": 0.7},
+    "bands": {
+      "_note": "Kolik hráč na dané pozici přispívá do pásem obrana/záloha/útok. Normuje se rozestavením referenceFormation, takže víc hráčů vepředu = silnější útok, ale slabší obrana.",
+      "byPosition": {
+        "GK": {"def": 0.4},
+        "CB": {"def": 1.0},
+        "LB": {"def": 0.7, "mid": 0.2, "att": 0.1},
+        "RB": {"def": 0.7, "mid": 0.2, "att": 0.1},
+        "DM": {"def": 0.5, "mid": 0.5},
+        "CM": {"def": 0.15, "mid": 0.7, "att": 0.15},
+        "AM": {"mid": 0.5, "att": 0.5},
+        "LM": {"def": 0.15, "mid": 0.6, "att": 0.25},
+        "RM": {"def": 0.15, "mid": 0.6, "att": 0.25},
+        "LW": {"mid": 0.3, "att": 0.7},
+        "RW": {"mid": 0.3, "att": 0.7},
+        "ST": {"att": 1.0}
+      },
+      "referenceFormation": "4-4-2"
+    },
+    "styleMix": {
+      "_note": "Jak se do síly hráče míchá TS, FS a rychlost (průměr rychlosti a akcelerace) podle stylu.",
+      "possession": {"ts": 0.6, "fs": 0.4, "speed": 0.0},
+      "direct": {"ts": 0.4, "fs": 0.6, "speed": 0.0},
+      "counter": {"ts": 0.45, "fs": 0.25, "speed": 0.3}
+    },
+    "homeBonus": 0.055,
+    "possessionExponent": 1.5,
+    "chanceExponent": 1.0,
+    "chancePerMinuteByLevel": {"1": 0.17, "2": 0.178, "3": 0.19},
+    "maxChancePerMinute": 0.6,
+    "xg": {
+      "_note": "xG šance: koše [pravděpodobnost, min, max], pak posun kvalitou útoku proti obraně a stylem.",
+      "buckets": [[0.6, 0.02, 0.08], [0.28, 0.08, 0.2], [0.09, 0.2, 0.45], [0.03, 0.45, 0.8]],
+      "qualityExponent": 0.3,
+      "scaleByLevel": {"1": 1.0, "2": 1.05, "3": 1.12},
+      "min": 0.02,
+      "max": 0.8
+    },
+    "finishing": {
+      "_note": "Gól = xG × (střelec / brankář)^exponent, omezeno min–max.",
+      "exponent": 0.35,
+      "min": 0.6,
+      "max": 1.6,
+      "penaltyExponent": 0.3
+    },
+    "onTargetIfNoGoal": 0.3,
+    "corners": {
+      "perMissedShot": 0.3,
+      "perPossessionMinute": 0.035,
+      "headerChance": 0.22,
+      "headerXg": [0.04, 0.25]
+    },
+    "fouls": {
+      "perMinute": 0.27,
+      "yellowPerFoul": 0.16,
+      "redPerFoul": 0.0015,
+      "penaltyPerFoul": 0.012,
+      "penaltyXg": 0.76,
+      "secondYellowFactor": 0.3
+    },
+    "tactics": {
+      "mentality": {
+        "_note": "own = násobič vlastních šancí, opp = násobič šancí soupeře.",
+        "defensive": {"own": 0.85, "opp": 0.9},
+        "balanced": {"own": 1.0, "opp": 1.0},
+        "attacking": {"own": 1.15, "opp": 1.1}
+      },
+      "pressing": {
+        "low": {"possession": 0.95, "fouls": 0.8, "drain": 0.85},
+        "medium": {"possession": 1.0, "fouls": 1.0, "drain": 1.0},
+        "high": {"possession": 1.06, "fouls": 1.3, "drain": 1.35}
+      },
+      "style": {
+        "possession": {"possession": 1.08, "chance": 1.0, "xg": 0.95},
+        "direct": {"possession": 0.95, "chance": 1.1, "xg": 0.88},
+        "counter": {"possession": 0.9, "chance": 0.88, "xg": 1.25}
+      },
+      "counterVsAttackingBonus": 1.1
+    },
+    "shooting": {
+      "_note": "Váhy pro výběr střelce, asistenta a faulujícího hráče podle pozice ve hře.",
+      "shooterByPosition": {
+        "GK": 0,
+        "CB": 0.1,
+        "LB": 0.08,
+        "RB": 0.08,
+        "DM": 0.12,
+        "CM": 0.25,
+        "AM": 0.55,
+        "LM": 0.3,
+        "RM": 0.3,
+        "LW": 0.6,
+        "RW": 0.6,
+        "ST": 1.0
+      },
+      "headerByPosition": {
+        "GK": 0,
+        "CB": 0.8,
+        "LB": 0.2,
+        "RB": 0.2,
+        "DM": 0.4,
+        "CM": 0.3,
+        "AM": 0.2,
+        "LM": 0.2,
+        "RM": 0.2,
+        "LW": 0.25,
+        "RW": 0.25,
+        "ST": 1.0
+      },
+      "assisterByPosition": {
+        "GK": 0.02,
+        "CB": 0.1,
+        "LB": 0.5,
+        "RB": 0.5,
+        "DM": 0.35,
+        "CM": 0.7,
+        "AM": 1.0,
+        "LM": 0.8,
+        "RM": 0.8,
+        "LW": 0.9,
+        "RW": 0.9,
+        "ST": 0.5
+      },
+      "foulerByPosition": {
+        "GK": 0.1,
+        "CB": 1.2,
+        "LB": 1.1,
+        "RB": 1.1,
+        "DM": 1.3,
+        "CM": 1.0,
+        "AM": 0.7,
+        "LM": 0.8,
+        "RM": 0.8,
+        "LW": 0.6,
+        "RW": 0.6,
+        "ST": 0.7
+      },
+      "assistChance": 0.75,
+      "keyPassChance": 0.6,
+      "errorPerGoal": 0.07
+    },
+    "subs": {
+      "max": 5,
+      "windows": 3,
+      "benchSize": 9,
+      "windowMinutes": [60, 70, 80],
+      "perWindow": 2,
+      "conditionThreshold": 80
+    },
+    "assistant": {
+      "_note": "Rozhodnutí asistenta v rychlém režimu (design, sekce 12).",
+      "chaseIfLosingFromMinute": 70,
+      "protectIfLeadingFromMinute": 80
+    }
+  },
+  "condition": {
+    "_note": "Kondice 0–100 %. Úbytek za minutu = drainPerMinute × presink × (1,3 − výdrž/100 × staminaEffect). Výkon = 1 − effect × (100 − kondice)/100.",
+    "drainPerMinute": 0.3,
+    "staminaEffect": 0.6,
+    "effect": 0.35,
+    "recoveryPerDay": 4,
+    "daysBetweenRounds": 7
+  },
+  "form": {
+    "_note": "Forma = průměr posledních známek. Vliv na výkon je malý (nejvýš ±3 %), aby nevznikla smyčka bohatí bohatnou.",
+    "historyLength": 10,
+    "window": 5,
+    "neutral": 6.5,
+    "effectPerPoint": 0.02,
+    "maxEffect": 0.03
+  },
+  "injuries": {
+    "_note": "Riziko za hráče a minutu × náchylnost/50 × (1 + únava). Délky zranění ve dnech.",
+    "hazardPerPlayerMinute": 0.00014,
+    "fatigueEffect": 1.0,
+    "severities": [
+      {
+        "weight": 0.5,
+        "minDays": 3,
+        "maxDays": 10,
+        "types": ["naražené koleno", "natažený sval", "výron kotníku", "otřes mozku"]
+      },
+      {
+        "weight": 0.35,
+        "minDays": 11,
+        "maxDays": 30,
+        "types": ["natržený sval", "podvrtnutý kotník", "zhmožděné žebro"]
+      },
+      {
+        "weight": 0.12,
+        "minDays": 31,
+        "maxDays": 90,
+        "types": ["natržené vazy", "únavová zlomenina", "poranění menisku"]
+      },
+      {"weight": 0.03, "minDays": 91, "maxDays": 240, "types": ["přetržený křížový vaz", "zlomenina nohy"]}
+    ]
+  },
+  "discipline": {
+    "_note": "Tresty v lize. Stopka za každou 4. žlutou kartu (podle zadání). Délky trestů za červené jsou odhad, neověřeno proti disciplinárnímu řádu FAČR.",
+    "yellowsPerBan": 4,
+    "yellowAccumulationBan": 1,
+    "secondYellowBan": 1,
+    "straightRedBan": {"matches": [1, 2, 3], "weights": [0.6, 0.3, 0.1]}
+  },
+  "ratings": {
+    "_note": "Známky 1–10 podle designu (sekce 12) + malá výkonová složka (skill a šum podle konzistence). Cílový průměr ~6,5 (design, sekce 5: pásmo 6,3–6,7 = průměr).",
+    "base": 6.0,
+    "goal": 1.0,
+    "assist": 0.6,
+    "keyPass": 0.2,
+    "errorLeadingToGoal": -0.8,
+    "redCard": -1.5,
+    "gkSave": 0.15,
+    "gkConceded": -0.3,
+    "teamWin": 0.3,
+    "teamLoss": -0.3,
+    "performanceMean": 0.38,
+    "performanceSkill": 0.03,
+    "noiseSd": 0.45,
+    "min": 1,
+    "max": 10
+  },
+  "ai": {
+    "_note": "Volba taktiky AI podle profilu sestavy a síly soupeře.",
+    "counterIfSpeedAboveCel": 3,
+    "possessionIfTsAboveFs": 2,
+    "mentalityStrengthDiff": 4,
+    "pressingStaminaDiff": 3
   }
 }

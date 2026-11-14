@@ -1,0 +1,78 @@
+{
+  "_note": "Taktické volby (design, sekce 12). Číselné dopady jsou v balance.json → match.tactics; tady jsou rozestavení, české názvy a nápovědy pro UI.",
+  "formations": [
+    {
+      "id": "4-4-2",
+      "slots": ["GK", "LB", "CB", "CB", "RB", "LM", "CM", "CM", "RM", "ST", "ST"],
+      "help": "Klasika se dvěma útočníky. Vyvážené pokrytí hřiště, ale ve středu zálohy jen dva hráči."
+    },
+    {
+      "id": "4-3-3",
+      "slots": ["GK", "LB", "CB", "CB", "RB", "DM", "CM", "CM", "LW", "ST", "RW"],
+      "help": "Tři hráči vepředu a rychlá křídla. Hodně tlaku na soupeřovu obranu, méně krytí po stranách."
+    },
+    {
+      "id": "4-2-3-1",
+      "slots": ["GK", "LB", "CB", "CB", "RB", "DM", "CM", "LW", "AM", "RW", "ST"],
+      "help": "Dva defenzivní záložníci a ofenzivní záložník za hrotem. Pevný střed, hrot ale bývá osamocený."
+    },
+    {
+      "id": "3-5-2",
+      "slots": ["GK", "CB", "CB", "CB", "LM", "DM", "CM", "CM", "RM", "ST", "ST"],
+      "help": "Tři stopeři a přeplněná záloha. Ovládne střed hřiště, krajní záložníci musí mít výdrž."
+    },
+    {
+      "id": "5-3-2",
+      "slots": ["GK", "LB", "CB", "CB", "CB", "RB", "DM", "CM", "CM", "ST", "ST"],
+      "help": "Pět obránců. Těžko se překonává, ale do útoku jde málo hráčů."
+    },
+    {
+      "id": "4-1-4-1",
+      "slots": ["GK", "LB", "CB", "CB", "RB", "DM", "LM", "CM", "CM", "RM", "ST"],
+      "help": "Jeden hrot a široká záloha. Bezpečné proti silnějšímu soupeři, gólů ale moc nedá."
+    }
+  ],
+  "styles": [
+    {
+      "id": "possession",
+      "name": "kombinační",
+      "help": "Krátké přihrávky a držení míče. Víc času s míčem a trpělivé šance. Chce technicky vybavené hráče (vysoké TS); na špatném trávníku trpí."
+    },
+    {
+      "id": "direct",
+      "name": "přímočarý",
+      "help": "Rychle dopředu, centry a souboje. Víc šancí, ale horších. Těží z fyzicky silných hráčů (vysoké FS) a dobrých hlavičkářů."
+    },
+    {
+      "id": "counter",
+      "name": "protiútoky",
+      "help": "Nechat soupeři míč a trestat z brejků. Méně šancí, ale kvalitnějších. Chce rychlé hráče, nejlépe proti útočně hrajícímu soupeři."
+    }
+  ],
+  "mentalities": [
+    {
+      "id": "defensive",
+      "name": "defenzivní",
+      "help": "Méně šancí pro oba týmy. Hodí se k udržení vedení nebo proti silnějšímu soupeři."
+    },
+    {"id": "balanced", "name": "vyvážené", "help": "Výchozí nastavení bez rizika navíc."},
+    {
+      "id": "attacking",
+      "name": "útočné",
+      "help": "Víc šancí pro oba týmy. Hodí se, když potřebuješ gól, ale vzadu to bude otevřenější."
+    }
+  ],
+  "pressing": [
+    {
+      "id": "low",
+      "name": "nízký",
+      "help": "Tým čeká na vlastní polovině. Šetří kondici a dělá méně faulů, soupeř má ale víc míče."
+    },
+    {"id": "medium", "name": "střední", "help": "Rozumný kompromis mezi ziskem míče a kondicí."},
+    {
+      "id": "high",
+      "name": "vysoký",
+      "help": "Víc zisků míče u soupeřovy brány, ale tým se po hodině unaví a fauluje víc. Hodí se pro tým s vysokou výdrží."
+    }
+  ]
+}

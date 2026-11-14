@@ -1,12 +1,53 @@
-import type { Balance } from '../data.ts';
-import type { Player } from '../types.ts';
+// TS, FS and CEL computed from detailed attributes (design, section 11).
+// TS/FS are weighted averages of attributes; the weights depend on the position the player
+// plays, so the same player has a different TS/FS/CEL in another slot.
 
-/** CEL (overall rating) from TS and FS, weighted by the player's main position. */
-export function overall(player: Pick<Player, 'ts' | 'fs' | 'positions'>, balance: Balance): number {
+import type { Balance } from '../data.ts';
+import type { AttributeId, Player, Position } from '../types.ts';
+
+type WithAttributes = Pick<Player, 'attributes'>;
+
+function weighted(player: WithAttributes, weights: Partial<Record<AttributeId, number>>): number {
+  let sum = 0;
+  for (const key in weights) sum += (weights[key as AttributeId] as number) * player.attributes[key as AttributeId];
+  return sum;
+}
+
+/** Technical ability (TS) when playing at `pos`. Not rounded. */
+export function tsAt(player: WithAttributes, pos: Position, balance: Balance): number {
+  return weighted(player, balance.attributes.weights[pos].tech);
+}
+
+/** Physical ability (FS) when playing at `pos`. Not rounded. */
+export function fsAt(player: WithAttributes, pos: Position, balance: Balance): number {
+  return weighted(player, balance.attributes.weights[pos].phys);
+}
+
+/** Overall (CEL) when playing at `pos`. Not rounded. */
+export function celAt(player: WithAttributes, pos: Position, balance: Balance): number {
+  const w = balance.rating.byPosition[pos];
+  return w.ts * tsAt(player, pos, balance) + w.fs * fsAt(player, pos, balance);
+}
+
+function mainPosition(player: Pick<Player, 'positions'>): Position {
   const main = player.positions[0];
   if (!main) throw new Error('Hráč nemá žádnou pozici');
-  const w = balance.rating.byPosition[main];
-  return Math.round(w.ts * player.ts + w.fs * player.fs);
+  return main;
+}
+
+/** TS shown in the squad list (main position, rounded). */
+export function ts(player: Pick<Player, 'attributes' | 'positions'>, balance: Balance): number {
+  return Math.round(tsAt(player, mainPosition(player), balance));
+}
+
+/** FS shown in the squad list (main position, rounded). */
+export function fs(player: Pick<Player, 'attributes' | 'positions'>, balance: Balance): number {
+  return Math.round(fsAt(player, mainPosition(player), balance));
+}
+
+/** CEL shown in the squad list (main position, rounded). */
+export function overall(player: Pick<Player, 'attributes' | 'positions'>, balance: Balance): number {
+  return Math.round(celAt(player, mainPosition(player), balance));
 }
 
 /** Age in whole years on a given date (ISO strings). */

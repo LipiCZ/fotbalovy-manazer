@@ -9,10 +9,10 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 import { loadDefaultData } from '../src/engine/data.ts';
-import { ageOn, overall, seasonStartDate } from '../src/engine/players/rating.ts';
+import { ageOn, fs, overall, seasonStartDate, ts } from '../src/engine/players/rating.ts';
 import { playSeason } from '../src/engine/season.ts';
 import { POSITION_LABEL_CS } from '../src/engine/types.ts';
-import { createWorld } from '../src/engine/world.ts';
+import { createWorld, teamStrength } from '../src/engine/world.ts';
 
 const { values } = parseArgs({
   options: {
@@ -45,7 +45,7 @@ for (const cs of season.competitions) {
   cs.table.forEach((row, i) => {
     const score = `${row.goalsFor}:${row.goalsAgainst}`;
     console.log(
-      `${lpad(i + 1, 3)}  ${pad(clubName.get(row.clubId) ?? row.clubId, 16)}${lpad(row.played, 3)}${lpad(row.won, 4)}${lpad(row.drawn, 4)}${lpad(row.lost, 4)}${lpad(score, 9)}${lpad(row.points, 6)}${lpad((cs.strength.get(row.clubId) ?? 0).toFixed(1), 7)}`,
+      `${lpad(i + 1, 3)}  ${pad(clubName.get(row.clubId) ?? row.clubId, 16)}${lpad(row.played, 3)}${lpad(row.won, 4)}${lpad(row.drawn, 4)}${lpad(row.lost, 4)}${lpad(score, 9)}${lpad(row.points, 6)}${lpad(teamStrength(world, row.clubId).toFixed(1), 7)}`,
     );
   });
   console.log(
@@ -66,7 +66,7 @@ if (values.squad) {
   for (const p of squad) {
     const pos = p.positions.map((x) => POSITION_LABEL_CS[x]).join('/');
     console.log(
-      `${pad(pos, 10)}${pad(`${p.firstName} ${p.lastName}`, 26)}${lpad(ageOn(p.birthDate, onDate), 4)}${lpad(overall(p, data.balance), 5)}${lpad(p.pot, 5)}${lpad(p.ts, 4)}${lpad(p.fs, 4)}  ${p.role}`,
+      `${pad(pos, 10)}${pad(`${p.firstName} ${p.lastName}`, 26)}${lpad(ageOn(p.birthDate, onDate), 4)}${lpad(overall(p, data.balance), 5)}${lpad(p.pot, 5)}${lpad(ts(p, data.balance), 4)}${lpad(fs(p, data.balance), 4)}  ${p.role}`,
     );
   }
 }

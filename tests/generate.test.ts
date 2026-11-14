@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadDefaultData } from '../src/engine/data.ts';
-import { ageOn, overall, seasonStartDate } from '../src/engine/players/rating.ts';
+import { ageOn, fs, overall, seasonStartDate, ts } from '../src/engine/players/rating.ts';
 import { createWorld } from '../src/engine/world.ts';
 
 const data = loadDefaultData();
@@ -32,8 +32,8 @@ describe('generátor hráčů', () => {
     expect(new Set(world.players.map((p) => p.id)).size).toBe(world.players.length);
     for (const p of world.players) {
       const cel = overall(p, data.balance);
-      for (const v of [p.ts, p.fs, p.pot, cel]) expect(v).toBeGreaterThanOrEqual(1);
-      for (const v of [p.ts, p.fs, p.pot, cel]) expect(v).toBeLessThanOrEqual(99);
+      for (const v of [ts(p, data.balance), fs(p, data.balance), p.pot, cel]) expect(v).toBeGreaterThanOrEqual(1);
+      for (const v of [ts(p, data.balance), fs(p, data.balance), p.pot, cel]) expect(v).toBeLessThanOrEqual(99);
       expect(p.pot).toBeGreaterThanOrEqual(cel);
       expect(p.positions.length).toBeGreaterThanOrEqual(1);
       expect(p.positions.length).toBeLessThanOrEqual(3);

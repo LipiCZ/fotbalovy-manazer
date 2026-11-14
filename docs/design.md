@@ -325,6 +325,16 @@ Navíc exekutor standardek a kapitán. **Každé nastavení má ve hře nápově
 
 **Pro vývoj:** simulace má pevné semínko náhody (seed), aby se dala automaticky testovat (např. 10 000 sezón a kontrola průměru gólů).
 
+**Doplněno ve fázi 2 (implementace):**
+
+- **Střídání:** nejvýš 5 hráčů ve 3 oknech (bez okna v nastaveném čase), lavička 9 hráčů. Asistent střídá unavené hráče v 60., 70. a 80. minutě a zraněné hned.
+- **Tresty v lize:** stopka na 1 zápas za každou 4. žlutou kartu. Druhá žlutá v zápase = stopka na 1 zápas a tyto žluté se do kumulace nepočítají. Přímá červená = stopka 1–3 zápasy (délka je odhad, neověřeno proti disciplinárnímu řádu FAČR).
+- **Zranění:** riziko roste s náchylností ke zraněním a únavou. Délka 3 dny až 8 měsíců. Zraněný hráč nenastoupí, dokud se nevyléčí.
+- **Forma:** průměr posledních 5 známek, vliv na výkon nejvýš ±3 %, aby nevznikla smyčka „bohatí bohatnou“.
+- **Známky:** ke vzorci výše přibyla malá výkonová složka (lepší hráč na svém místě o něco výš, šum podle konzistence). Průměr je zhruba 6,4–6,5, což odpovídá pásmu „průměr“ v tabulce růstu (sekce 5).
+- **Engine je krokovač** (minuta po minutě), takže živý režim (sekce 4) ho použije beze změn.
+- **Mezi koly** zatím počítáme 7 dní (kondice se obnoví, zranění se hojí), dokud nebude kalendář.
+
 ## 13. Ekonomika a účetnictví
 
 Hra vždy ukazuje dvě čísla: peníze na účtu (z nich se platí výplaty) a účetní výsledek (podle něj hodnotí majitel a média). Účetní rok je 1. 7. – 30. 6. jako sezóna. Bez daní, bez přepínače ČÚS/IFRS, výkazy hodně zjednodušené.

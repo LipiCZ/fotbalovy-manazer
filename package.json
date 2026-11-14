@@ -9,7 +9,9 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
-    "simulate": "tsx scripts/simulate-season.ts"
+    "simulate": "tsx scripts/simulate-season.ts",
+    "match": "tsx scripts/simulate-match.ts",
+    "calibrate": "tsx scripts/calibrate.ts"
   },
   "repository": {
     "type": "git",

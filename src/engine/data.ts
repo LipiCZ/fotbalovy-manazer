@@ -7,8 +7,13 @@ import competitionsJson from '../../data/competitions.json';
 import regionsJson from '../../data/regions.json';
 import namesJson from '../../data/names.json';
 import balanceJson from '../../data/balance.json';
+import tacticsJson from '../../data/tactics.json';
 import {
+  GK_TECH,
+  OUTFIELD_TECH,
+  PHYSICAL,
   POSITIONS,
+  type AttributeId,
   type Club,
   type ClubSize,
   type Competition,
@@ -28,8 +33,26 @@ interface Gaussian {
   max: number;
 }
 
+interface HiddenCfg {
+  mean: number;
+  sd: number;
+  perYearOver22: number;
+}
+
 export interface Balance {
   rating: { byPosition: Record<Position, { ts: number; fs: number }> };
+  attributes: {
+    weights: Record<Position, { tech: Partial<Record<AttributeId, number>>; phys: Partial<Record<AttributeId, number>> }>;
+    generation: {
+      relevantSd: number;
+      irrelevantPenalty: number;
+      irrelevantSd: number;
+      gkOutfieldTechPenalty: number;
+      outfieldGkTech: { min: number; max: number };
+    };
+    hidden: Record<'adaptation' | 'professionalism' | 'consistency' | 'injuryProneness', HiddenCfg>;
+    leadership: HiddenCfg;
+  };
   squad: {
     templateByLevel: Record<`${Level}`, Partial<Record<Position, Tier[]>>>;
     relatedPositions: Record<Position, Position[]>;
@@ -52,6 +75,132 @@ export interface Balance {
     strengthBonus: { maxBonus: number; celDiffForMaxBonus: number };
     teamStrengthTopN: number;
   };
+  match: MatchBalance;
+  condition: {
+    drainPerMinute: number;
+    staminaEffect: number;
+    effect: number;
+    recoveryPerDay: number;
+    daysBetweenRounds: number;
+  };
+  form: { historyLength: number; window: number; neutral: number; effectPerPoint: number; maxEffect: number };
+  injuries: {
+    hazardPerPlayerMinute: number;
+    fatigueEffect: number;
+    severities: { weight: number; minDays: number; maxDays: number; types: string[] }[];
+  };
+  discipline: {
+    yellowsPerBan: number;
+    yellowAccumulationBan: number;
+    secondYellowBan: number;
+    straightRedBan: { matches: number[]; weights: number[] };
+  };
+  ratings: {
+    base: number;
+    goal: number;
+    assist: number;
+    keyPass: number;
+    errorLeadingToGoal: number;
+    redCard: number;
+    gkSave: number;
+    gkConceded: number;
+    teamWin: number;
+    teamLoss: number;
+    performanceMean: number;
+    performanceSkill: number;
+    noiseSd: number;
+    min: number;
+    max: number;
+  };
+  ai: {
+    counterIfSpeedAboveCel: number;
+    possessionIfTsAboveFs: number;
+    mentalityStrengthDiff: number;
+    pressingStaminaDiff: number;
+  };
+}
+
+export type Band = 'def' | 'mid' | 'att';
+type ByPosition = Record<Position, number>;
+
+export interface MatchBalance {
+  halfMinutes: number;
+  addedTime: { firstHalf: [number, number]; secondHalf: [number, number] };
+  positionFit: { natural: number; related: number; foreign: number };
+  bands: { byPosition: Record<Position, Partial<Record<Band, number>>>; referenceFormation: FormationId };
+  styleMix: Record<Style, { ts: number; fs: number; speed: number }>;
+  homeBonus: number;
+  possessionExponent: number;
+  chanceExponent: number;
+  chancePerMinuteByLevel: Record<`${Level}`, number>;
+  maxChancePerMinute: number;
+  xg: {
+    buckets: [number, number, number][];
+    qualityExponent: number;
+    scaleByLevel: Record<`${Level}`, number>;
+    min: number;
+    max: number;
+  };
+  finishing: { exponent: number; min: number; max: number; penaltyExponent: number };
+  onTargetIfNoGoal: number;
+  corners: { perMissedShot: number; perPossessionMinute: number; headerChance: number; headerXg: [number, number] };
+  fouls: {
+    perMinute: number;
+    yellowPerFoul: number;
+    /** Multiplier of yellowPerFoul for a player who already has a yellow card (booked players are careful). */
+    secondYellowFactor: number;
+    redPerFoul: number;
+    penaltyPerFoul: number;
+    penaltyXg: number;
+  };
+  tactics: {
+    mentality: Record<Mentality, { own: number; opp: number }>;
+    pressing: Record<Pressing, { possession: number; fouls: number; drain: number }>;
+    style: Record<Style, { possession: number; chance: number; xg: number }>;
+    counterVsAttackingBonus: number;
+  };
+  shooting: {
+    shooterByPosition: ByPosition;
+    headerByPosition: ByPosition;
+    assisterByPosition: ByPosition;
+    foulerByPosition: ByPosition;
+    assistChance: number;
+    keyPassChance: number;
+    errorPerGoal: number;
+  };
+  subs: {
+    max: number;
+    windows: number;
+    benchSize: number;
+    windowMinutes: number[];
+    perWindow: number;
+    conditionThreshold: number;
+  };
+  assistant: { chaseIfLosingFromMinute: number; protectIfLeadingFromMinute: number };
+}
+
+export type FormationId = '4-4-2' | '4-3-3' | '4-2-3-1' | '3-5-2' | '5-3-2' | '4-1-4-1';
+export type Style = 'possession' | 'direct' | 'counter';
+export type Mentality = 'defensive' | 'balanced' | 'attacking';
+export type Pressing = 'low' | 'medium' | 'high';
+
+export interface Formation {
+  id: FormationId;
+  slots: Position[];
+  help: string;
+}
+
+export interface TacticOption<T extends string> {
+  id: T;
+  name: string;
+  help: string;
+}
+
+export interface TacticsData {
+  formations: Formation[];
+  styles: TacticOption<Style>[];
+  mentalities: TacticOption<Mentality>[];
+  pressing: TacticOption<Pressing>[];
 }
 
 export interface Names {
@@ -65,6 +214,7 @@ export interface GameData {
   clubs: Club[];
   names: Names;
   balance: Balance;
+  tactics: TacticsData;
 }
 
 export interface RawGameData {
@@ -73,6 +223,7 @@ export interface RawGameData {
   clubs: unknown;
   names: unknown;
   balance: unknown;
+  tactics: unknown;
 }
 
 export class DataValidationError extends Error {
@@ -219,12 +370,31 @@ export function validateGameData(raw: RawGameData): GameData {
   const balance = raw.balance as Balance;
   if (!isObj(raw.balance)) problems.push('balance: očekáván objekt');
   else {
-    for (const key of ['rating', 'squad', 'strength', 'age', 'profile', 'potential', 'simpleResults'])
+    for (const key of [
+      'rating', 'attributes', 'squad', 'strength', 'age', 'profile', 'potential', 'simpleResults',
+      'match', 'condition', 'form', 'injuries', 'discipline', 'ratings', 'ai',
+    ])
       if (!isObj(raw.balance[key])) problems.push(`balance.${key}: chybí`);
     if (problems.length === 0) {
       for (const p of POSITIONS) {
         const w = balance.rating.byPosition[p];
         if (!w || Math.abs(w.ts + w.fs - 1) > 1e-9) problems.push(`balance.rating.byPosition.${p}: váhy musí dát součet 1`);
+        const aw = balance.attributes.weights[p];
+        if (!aw) {
+          problems.push(`balance.attributes.weights.${p}: chybí`);
+          continue;
+        }
+        const allowedTech: readonly string[] = p === 'GK' ? GK_TECH : OUTFIELD_TECH;
+        for (const [group, allowed] of [
+          ['tech', allowedTech],
+          ['phys', PHYSICAL as readonly string[]],
+        ] as const) {
+          const entries = Object.entries(aw[group]);
+          const sum = entries.reduce((s, [, v]) => s + (v ?? 0), 0);
+          if (Math.abs(sum - 1) > 1e-9) problems.push(`balance.attributes.weights.${p}.${group}: váhy musí dát součet 1 (je ${sum})`);
+          for (const [k] of entries)
+            if (!allowed.includes(k)) problems.push(`balance.attributes.weights.${p}.${group}: atribut "${k}" sem nepatří`);
+        }
       }
       for (const lvl of ['1', '2', '3'] as const) {
         const tpl = balance.squad.templateByLevel[lvl];
@@ -234,8 +404,23 @@ export function validateGameData(raw: RawGameData): GameData {
     }
   }
 
+  // --- tactics
+  const tactics = raw.tactics as TacticsData;
+  if (!isObj(raw.tactics) || !Array.isArray(raw.tactics.formations)) problems.push('tactics: chybí formations');
+  else {
+    for (const f of tactics.formations) {
+      const gks = f.slots.filter((p) => p === 'GK').length;
+      if (f.slots.length !== 11 || gks !== 1) problems.push(`tactics.formations ${f.id}: musí mít 11 slotů a právě 1 brankáře`);
+      if (!f.slots.every((p) => POSITIONS.includes(p))) problems.push(`tactics.formations ${f.id}: neznámá pozice`);
+    }
+    if (isObj(raw.balance) && problems.length === 0) {
+      const ref = balance.match.bands.referenceFormation;
+      if (!tactics.formations.some((f) => f.id === ref)) problems.push(`balance.match.bands.referenceFormation "${ref}" neexistuje`);
+    }
+  }
+
   if (problems.length > 0) throw new DataValidationError(problems);
-  return { regions, competitions, clubs, names, balance };
+  return { regions, competitions, clubs, names, balance, tactics };
 }
 
 export function loadDefaultData(): GameData {
@@ -245,5 +430,6 @@ export function loadDefaultData(): GameData {
     clubs: clubsJson,
     names: namesJson,
     balance: balanceJson,
+    tactics: tacticsJson,
   });
 }

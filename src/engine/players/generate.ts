@@ -3,7 +3,20 @@
 
 import type { Balance, GameData, Tier } from '../data.ts';
 import type { Rng } from '../rng.ts';
-import type { Club, Level, Player, Position } from '../types.ts';
+import {
+  ATTRIBUTES,
+  GK_TECH,
+  OUTFIELD_TECH,
+  PHYSICAL,
+  type AttributeId,
+  type Attributes,
+  type Club,
+  type HiddenAttributes,
+  type Level,
+  type Player,
+  type Position,
+} from '../types.ts';
+import { celAt } from './rating.ts';
 
 export interface GeneratedPlayer extends Player {
   /** Squad role the player was generated for (not persisted game state, useful for checks). */
@@ -56,6 +69,74 @@ function pickPositions(main: Position, balance: Balance, rng: Rng): Position[] {
   return positions;
 }
 
+/**
+ * Detailed attributes whose weighted averages hit the TS/FS targets for the main position.
+ * Attributes the position uses get target + noise, the others are lower; the used ones are then
+ * shifted so that the weighted TS/FS match the targets (up to rounding and clamping).
+ */
+export function generateAttributes(
+  main: Position,
+  tsTarget: number,
+  fsTarget: number,
+  balance: Balance,
+  rng: Rng,
+): Attributes {
+  const g = balance.attributes.generation;
+  const { minAttribute: lo, maxAttribute: hi } = balance.strength;
+  const weights = balance.attributes.weights[main];
+  const isGk = main === 'GK';
+  const raw = {} as Record<AttributeId, number>;
+
+  const fill = (group: readonly AttributeId[], target: number, groupWeights: Partial<Record<AttributeId, number>>) => {
+    const used = group.filter((a) => (groupWeights[a] ?? 0) > 0);
+    for (const a of group) {
+      raw[a] = used.includes(a) ? target + rng.normal(0, g.relevantSd) : target - g.irrelevantPenalty + rng.normal(0, g.irrelevantSd);
+    }
+    // Shift used attributes so that the weighted average equals the target.
+    for (let iter = 0; iter < 3; iter++) {
+      let current = 0;
+      for (const a of used) current += (groupWeights[a] as number) * clamp(Math.round(raw[a]), lo, hi);
+      const diff = target - current;
+      if (Math.abs(diff) < 0.5) break;
+      for (const a of used) raw[a] += diff;
+    }
+  };
+
+  if (isGk) {
+    fill(GK_TECH, tsTarget, weights.tech);
+    for (const a of OUTFIELD_TECH) raw[a] = tsTarget - g.gkOutfieldTechPenalty + rng.normal(0, g.irrelevantSd);
+  } else {
+    fill(OUTFIELD_TECH, tsTarget, weights.tech);
+    for (const a of GK_TECH) raw[a] = rng.int(g.outfieldGkTech.min, g.outfieldGkTech.max);
+  }
+  fill(PHYSICAL, fsTarget, weights.phys);
+
+  const attributes = {} as Attributes;
+  for (const a of ATTRIBUTES) attributes[a] = clamp(Math.round(raw[a]), lo, hi);
+  return attributes;
+}
+
+function hiddenValue(
+  cfg: { mean: number; sd: number; perYearOver22: number },
+  age: number,
+  rng: Rng,
+  lo: number,
+  hi: number,
+): number {
+  return clamp(Math.round(rng.normal(cfg.mean + Math.max(0, age - 22) * cfg.perYearOver22, cfg.sd)), lo, hi);
+}
+
+function generateHidden(age: number, balance: Balance, rng: Rng): HiddenAttributes {
+  const h = balance.attributes.hidden;
+  const { minAttribute: lo, maxAttribute: hi } = balance.strength;
+  return {
+    adaptation: hiddenValue(h.adaptation, age, rng, lo, hi),
+    professionalism: hiddenValue(h.professionalism, age, rng, lo, hi),
+    consistency: hiddenValue(h.consistency, age, rng, lo, hi),
+    injuryProneness: hiddenValue(h.injuryProneness, age, rng, lo, hi),
+  };
+}
+
 export interface PlayerSpec {
   clubId: string;
   main: Position;
@@ -85,9 +166,10 @@ export function generatePlayer(
   const p = balance.profile;
   const youthBias = Math.max(0, p.youthTechBiasUntilAge - age) * p.youthTechBiasPerYear;
   const delta = rng.normal(youthBias, p.tsMinusCelSd);
-  const ts = clamp(Math.round(cel + delta), lo, hi);
-  const fs = clamp(Math.round((cel - w.ts * ts) / w.fs), lo, hi);
-  const realCel = w.ts * ts + w.fs * fs;
+  const tsTarget = clamp(cel + delta, lo, hi);
+  const fsTarget = clamp((cel - w.ts * tsTarget) / w.fs, lo, hi);
+  const attributes = generateAttributes(spec.main, tsTarget, fsTarget, balance, rng);
+  const realCel = celAt({ attributes }, spec.main, balance);
 
   const gapMean = interpolate(balance.potential.gapByAge, age);
   const gap = Math.max(0, rng.normal(gapMean, balance.potential.gapSd));
@@ -99,10 +181,12 @@ export function generatePlayer(
     lastName: rng.pick(names.lastNames),
     birthDate: birthDateForAge(age, seasonYear, rng),
     positions: pickPositions(spec.main, balance, rng),
-    ts,
-    fs,
+    attributes,
+    leadership: hiddenValue(balance.attributes.leadership, age, rng, lo, hi),
+    hidden: generateHidden(age, balance, rng),
     pot,
     clubId: spec.clubId,
+    state: { condition: 100, recentRatings: [], suspensionMatches: 0, yellowCards: 0 },
     role: spec.role,
   };
 }
