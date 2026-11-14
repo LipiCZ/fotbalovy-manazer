@@ -65,6 +65,14 @@ Hra hráče zastaví jen tehdy, když potřebuje rozhodnutí. Tlačítko Pokrač
 | květen | nadstavba, finále MOL Cupu, baráže |
 | červen | sezónní report: výkazy, vývoj hráčů, reputace, ceny sezóny |
 
+**Doplněno ve fázi 3 (implementace):**
+
+- **Kalendář:** ligová kola se hrají v sobotu. 1. liga od konce července se zimní pauzou zhruba 14. 12. – 5. 2., nižší soutěže od začátku srpna se zimní pauzou do konce února nebo začátku března. MSFL (34 kol) končí v červnu. Termíny jsou odhad, neověřeno proti FAČR.
+- **Pokračovat** (i mezerník) odehraje všechny hrací dny až po další zápas mého týmu a ukáže jeho výsledek. **Přeskočit na konec sezóny** dohraje zbytek sezóny; sestavy přitom vybírá asistent podle mé taktiky, protože hráč nemůže reagovat.
+- **Sestava:** zraněné a vyloučené hráče asistent před zápasem nahradí vždy a napíše to do Novinek. Přepínač „sestavu vybírá asistent“ deleguje výběr celé sestavy (styl, nastavení a presink zůstávají moje).
+- **Ukládání:** automatické uložení po každém zápase + 3 ruční pozice v prohlížeči (IndexedDB), export a import JSON souboru. Uložení s jinou verzí herních dat se načte s varováním.
+- **MVP zjednodušení:** jen volný výběr klubu (kariéra od dna je ve fázi 8), B a C týmy vést nejde. POT vlastních hráčů je vidět přesně (od fáze 6 jako odhad podle skautů). Na výsledkové obrazovce je zatím jen město, stadion s kapacitou a návštěvou přijde s modelem vstupného a stadionu. Pošta, peníze v horní liště a cíl vedení přijdou s ekonomikou.
+
 ## 4. Zápas
 
 Zápas má dva režimy. Minutový přenos minutu po minutě není potřeba.
@@ -457,7 +465,7 @@ fotbalovy-manazer/
 | 0 | projekt, CLAUDE.md, design do docs/, git | `npm run dev` ukáže prázdnou stránku |
 | 1 | 82 klubů v JSON, generátor fiktivních hráčů, rozpis zápasů, tabulky | příkaz odsimuluje celou sezónu s náhodnými výsledky |
 | 2 | model hráče (CEL, TS, FS, forma, kondice), simulace zápasu, známky, kalibrace | 1 000 sezón dá průměr gólů a domácích výher v cílovém rozsahu |
-| 3 | základní UI: Domů, Soupiska, Profil, Taktika, rychlý zápas, Soutěže, Pokračovat, ukládání | **MVP: odehraju celou sezónu** |
+| 3 | základní UI: Domů, Soupiska, Profil, Taktika, rychlý zápas, Soutěže, Pokračovat, ukládání | **MVP: odehraju celou sezónu** (hotovo) |
 | 4 | vývoj hráčů, stárnutí, mládež, B-týmy, přechod sezóny, postupy, nadstavba, baráže, MOL Cup | odehraju 5 sezón za sebou |
 | 5 | ekonomika: rozpočet, platy, vstupné, transakce, výkazy, cash flow | sezónní report s výkazy |
 | 6 | přestupy, smlouvy, přestupní listina, volní hráči, skauting, živý trh AI | koupím, prodám a najdu talent |

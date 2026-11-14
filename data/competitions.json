@@ -1,27 +1,62 @@
 [
   {
-    "id": "chance-liga", "name": "Chance Liga", "shortName": "1. liga", "level": 1, "teamCount": 16,
-    "meetings": 2, "pointsForWin": 3, "pointsForDraw": 1,
-    "tiebreakers": ["points", "h2hPoints", "h2hGoalDiff", "h2hGoalsFor", "goalDiff", "goalsFor", "lot"]
+    "id": "chance-liga",
+    "name": "Chance Liga",
+    "shortName": "1. liga",
+    "level": 1,
+    "teamCount": 16,
+    "meetings": 2,
+    "pointsForWin": 3,
+    "pointsForDraw": 1,
+    "tiebreakers": ["points", "h2hPoints", "h2hGoalDiff", "h2hGoalsFor", "goalDiff", "goalsFor", "lot"],
+    "calendar": {"firstRound": "07-25", "winterBreak": ["12-14", "02-05"]}
   },
   {
-    "id": "cnl", "name": "Chance Národní Liga", "shortName": "2. liga", "level": 2, "teamCount": 16,
-    "meetings": 2, "pointsForWin": 3, "pointsForDraw": 1,
-    "tiebreakers": ["points", "h2hPoints", "h2hGoalDiff", "h2hGoalsFor", "goalDiff", "goalsFor", "lot"]
+    "id": "cnl",
+    "name": "Chance Národní Liga",
+    "shortName": "2. liga",
+    "level": 2,
+    "teamCount": 16,
+    "meetings": 2,
+    "pointsForWin": 3,
+    "pointsForDraw": 1,
+    "tiebreakers": ["points", "h2hPoints", "h2hGoalDiff", "h2hGoalsFor", "goalDiff", "goalsFor", "lot"],
+    "calendar": {"firstRound": "07-25", "winterBreak": ["11-23", "02-26"]}
   },
   {
-    "id": "cfl-a", "name": "ČFL – skupina A", "shortName": "ČFL A", "level": 3, "teamCount": 16,
-    "meetings": 2, "pointsForWin": 3, "pointsForDraw": 1,
-    "tiebreakers": ["points", "h2hPoints", "h2hGoalDiff", "h2hGoalsFor", "goalDiff", "goalsFor", "lot"]
+    "id": "cfl-a",
+    "name": "ČFL – skupina A",
+    "shortName": "ČFL A",
+    "level": 3,
+    "teamCount": 16,
+    "meetings": 2,
+    "pointsForWin": 3,
+    "pointsForDraw": 1,
+    "tiebreakers": ["points", "h2hPoints", "h2hGoalDiff", "h2hGoalsFor", "goalDiff", "goalsFor", "lot"],
+    "calendar": {"firstRound": "08-01", "winterBreak": ["11-23", "03-05"]}
   },
   {
-    "id": "cfl-b", "name": "ČFL – skupina B", "shortName": "ČFL B", "level": 3, "teamCount": 16,
-    "meetings": 2, "pointsForWin": 3, "pointsForDraw": 1,
-    "tiebreakers": ["points", "h2hPoints", "h2hGoalDiff", "h2hGoalsFor", "goalDiff", "goalsFor", "lot"]
+    "id": "cfl-b",
+    "name": "ČFL – skupina B",
+    "shortName": "ČFL B",
+    "level": 3,
+    "teamCount": 16,
+    "meetings": 2,
+    "pointsForWin": 3,
+    "pointsForDraw": 1,
+    "tiebreakers": ["points", "h2hPoints", "h2hGoalDiff", "h2hGoalsFor", "goalDiff", "goalsFor", "lot"],
+    "calendar": {"firstRound": "08-01", "winterBreak": ["11-23", "03-05"]}
   },
   {
-    "id": "msfl", "name": "Moravskoslezská fotbalová liga", "shortName": "MSFL", "level": 3, "teamCount": 18,
-    "meetings": 2, "pointsForWin": 3, "pointsForDraw": 1,
-    "tiebreakers": ["points", "h2hPoints", "h2hGoalDiff", "h2hGoalsFor", "goalDiff", "goalsFor", "lot"]
+    "id": "msfl",
+    "name": "Moravskoslezská fotbalová liga",
+    "shortName": "MSFL",
+    "level": 3,
+    "teamCount": 18,
+    "meetings": 2,
+    "pointsForWin": 3,
+    "pointsForDraw": 1,
+    "tiebreakers": ["points", "h2hPoints", "h2hGoalDiff", "h2hGoalsFor", "goalDiff", "goalsFor", "lot"],
+    "calendar": {"firstRound": "08-01", "winterBreak": ["11-23", "02-26"]}
   }
 ]

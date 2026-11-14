@@ -8,6 +8,7 @@ import regionsJson from '../../data/regions.json';
 import namesJson from '../../data/names.json';
 import balanceJson from '../../data/balance.json';
 import tacticsJson from '../../data/tactics.json';
+import { hashString } from './rng.ts';
 import {
   GK_TECH,
   OUTFIELD_TECH,
@@ -209,6 +210,8 @@ export interface Names {
 }
 
 export interface GameData {
+  /** Fingerprint of the raw data files; saves remember it to warn when the data changed. */
+  hash: string;
   regions: Region[];
   competitions: Competition[];
   clubs: Club[];
@@ -285,6 +288,10 @@ export function validateGameData(raw: RawGameData): GameData {
         !c.tiebreakers.every((t) => TIEBREAKERS.includes(t as TiebreakCriterion))
       )
         problems.push(`${where}: tiebreakers musí začínat "points" a obsahovat jen známá kritéria`);
+      const cal = c.calendar as { firstRound?: unknown; winterBreak?: unknown } | undefined;
+      const mmdd = (v: unknown) => typeof v === 'string' && /^\d{2}-\d{2}$/.test(v);
+      if (!cal || !mmdd(cal.firstRound) || !Array.isArray(cal.winterBreak) || cal.winterBreak.length !== 2 || !cal.winterBreak.every(mmdd))
+        problems.push(`${where}: calendar musí mít firstRound a winterBreak ve tvaru MM-DD`);
       competitions.push(c as unknown as Competition);
     });
   const compById = new Map(competitions.map((c) => [c.id, c]));
@@ -420,7 +427,8 @@ export function validateGameData(raw: RawGameData): GameData {
   }
 
   if (problems.length > 0) throw new DataValidationError(problems);
-  return { regions, competitions, clubs, names, balance, tactics };
+  const hash = hashString(JSON.stringify(raw)).toString(16).padStart(8, '0');
+  return { hash, regions, competitions, clubs, names, balance, tactics };
 }
 
 export function loadDefaultData(): GameData {

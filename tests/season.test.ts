@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadDefaultData } from '../src/engine/data.ts';
 import type { MatchReport, PlayerMatchLine } from '../src/engine/match/types.ts';
 import { Rng } from '../src/engine/rng.ts';
+import { daysBetween } from '../src/engine/game/calendar.ts';
 import { applyMatchToPlayers, expectedGoals, passDays, playSeason } from '../src/engine/season.ts';
 import type { Player } from '../src/engine/types.ts';
 import { createWorld } from '../src/engine/world.ts';
@@ -41,12 +42,12 @@ describe('simulace sezóny', () => {
 });
 
 /** Matches of a club in round order, with the player lines. */
-function clubTimeline(clubId: string): { round: number; lines: PlayerMatchLine[]; report: MatchReport }[] {
-  const out: { round: number; lines: PlayerMatchLine[]; report: MatchReport }[] = [];
+function clubTimeline(clubId: string): { round: number; date: string; lines: PlayerMatchLine[]; report: MatchReport }[] {
+  const out: { round: number; date: string; lines: PlayerMatchLine[]; report: MatchReport }[] = [];
   for (const cs of season.competitions)
     cs.reports!.forEach((r, i) => {
       if (r.homeId === clubId || r.awayId === clubId)
-        out.push({ round: cs.results[i]!.round, lines: r.players.filter((l) => l.clubId === clubId), report: r });
+        out.push({ round: cs.results[i]!.round, date: cs.summaries[i]!.date, lines: r.players.filter((l) => l.clubId === clubId), report: r });
     });
   return out.sort((a, b) => a.round - b.round);
 }
@@ -57,17 +58,15 @@ describe('zranění a tresty mezi koly', () => {
   const appears = (lines: PlayerMatchLine[], id: string) => lines.some((l) => l.playerId === id);
   // In the sheet = in the starting XI or on the bench; lines exist only for players who played.
 
-  it('zraněný hráč nehraje, dokud se nevyléčí', () => {
-    const days = balance.condition.daysBetweenRounds;
+  it('zraněný hráč nehraje, dokud se nevyléčí (podle dnů v kalendáři)', () => {
     let checked = 0;
     for (const [, tl] of timelines) {
       tl.forEach((m, idx) => {
         for (const l of m.lines) {
           if (!l.injury) continue;
-          const missRounds = Math.ceil(l.injury.daysLeft / days) - 1;
           for (const next of tl.slice(idx + 1)) {
-            if (next.round > m.round + missRounds) break;
-            expect(appears(next.lines, l.playerId), `${l.playerId} zraněný v ${m.round}. kole`).toBe(false);
+            if (daysBetween(m.date, next.date) >= l.injury.daysLeft) break;
+            expect(appears(next.lines, l.playerId), `${l.playerId} zraněný ${m.date}`).toBe(false);
             checked++;
           }
         }
@@ -146,7 +145,7 @@ describe('stav hráče', () => {
     passDays([p], 7, balance);
     expect(p.state.condition).toBe(100);
     expect(p.state.injury?.daysLeft).toBe(5);
-    passDays([p], 7, balance);
+    expect(passDays([p], 7, balance)).toEqual([p]); // vrací uzdravené hráče
     expect(p.state.injury).toBeUndefined();
   });
 });

@@ -50,6 +50,8 @@ export interface Competition {
   pointsForWin: number;
   pointsForDraw: number;
   tiebreakers: TiebreakCriterion[];
+  /** Round dates: Saturdays from firstRound, none inside the winter break (MM-DD, inclusive). Game estimate. */
+  calendar: { firstRound: string; winterBreak: [string, string] };
 }
 
 export interface Club {
