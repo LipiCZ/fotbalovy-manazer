@@ -1,0 +1,100 @@
+{
+  "_note": "Všechny laditelné konstanty. Hodnoty jsou herní odhady kalibrované podle docs/design.md (sekce 5, 11, 12), ne reálná data.",
+
+  "rating": {
+    "_note": "CEL = ts * TS + fs * FS. Váhy podle hlavní pozice hráče; výchozí 50/50 (design, sekce 11).",
+    "byPosition": {
+      "GK": { "ts": 0.5, "fs": 0.5 },
+      "CB": { "ts": 0.5, "fs": 0.5 },
+      "LB": { "ts": 0.5, "fs": 0.5 },
+      "RB": { "ts": 0.5, "fs": 0.5 },
+      "DM": { "ts": 0.5, "fs": 0.5 },
+      "CM": { "ts": 0.5, "fs": 0.5 },
+      "AM": { "ts": 0.5, "fs": 0.5 },
+      "LM": { "ts": 0.5, "fs": 0.5 },
+      "RM": { "ts": 0.5, "fs": 0.5 },
+      "LW": { "ts": 0.5, "fs": 0.5 },
+      "RW": { "ts": 0.5, "fs": 0.5 },
+      "ST": { "ts": 0.5, "fs": 0.5 }
+    }
+  },
+
+  "squad": {
+    "_note": "Šablona kádru podle úrovně soutěže: pro každou hlavní pozici seznam rolí. S = základní sestava (11), R = rotace, Y = mladík/perspektiva.",
+    "templateByLevel": {
+      "1": {
+        "GK": ["S", "R", "Y"], "CB": ["S", "S", "R", "Y"], "LB": ["S", "R"], "RB": ["S", "R"],
+        "DM": ["S", "R"], "CM": ["S", "R", "Y"], "AM": ["S"], "LW": ["S", "Y"], "RW": ["S", "R"], "ST": ["S", "R", "Y"]
+      },
+      "2": {
+        "GK": ["S", "R", "Y"], "CB": ["S", "S", "R", "Y"], "LB": ["S", "R"], "RB": ["S", "R"],
+        "DM": ["S", "R"], "CM": ["S", "Y"], "AM": ["S"], "LW": ["S", "Y"], "RW": ["S", "R"], "ST": ["S", "R"]
+      },
+      "3": {
+        "GK": ["S", "R"], "CB": ["S", "S", "R", "Y"], "LB": ["S", "R"], "RB": ["S"],
+        "DM": ["S", "R"], "CM": ["S", "Y"], "AM": ["S"], "LW": ["S"], "RW": ["S", "R"], "ST": ["S", "R", "Y"]
+      }
+    },
+    "relatedPositions": {
+      "GK": [], "CB": ["DM", "RB", "LB"], "LB": ["LM", "LW", "RB"], "RB": ["RM", "RW", "LB"],
+      "DM": ["CM", "CB"], "CM": ["DM", "AM"], "AM": ["CM", "ST", "LW", "RW"],
+      "LM": ["LW", "LB", "CM"], "RM": ["RW", "RB", "CM"], "LW": ["LM", "RW", "AM"], "RW": ["RM", "LW", "AM"],
+      "ST": ["AM", "LW", "RW"]
+    },
+    "secondPositionChance": 0.55,
+    "thirdPositionChance": 0.2
+  },
+
+  "strength": {
+    "_note": "Průměrný CEL základní sestavy = základ úrovně + posun podle velikosti klubu. Cíle z designu: hráč 3. ligy 45–55, kapitán průměrného prvoligového týmu ~68, opory Slavie/Sparty 75–80.",
+    "starterMeanByLevel": { "1": 64, "2": 57, "3": 50 },
+    "sizeOffset": { "1": -3, "2": -1.5, "3": 0, "4": 3, "5": 7 },
+    "reserveOffsetByParentSize": { "1": -3, "2": -2, "3": -1, "4": 0, "5": 1 },
+    "tiers": {
+      "S": { "celOffset": 0, "celSd": 3 },
+      "R": { "celOffset": -5, "celSd": 3.5 },
+      "Y": { "celOffset": -11, "celSd": 3 }
+    },
+    "minAttribute": 1,
+    "maxAttribute": 99
+  },
+
+  "age": {
+    "_note": "Věk k 1. 7. sezóny podle role. Rezervní (B/C) týmy jsou výrazně mladší.",
+    "first": {
+      "S": { "mean": 27, "sd": 3.5, "min": 19, "max": 35 },
+      "R": { "mean": 25, "sd": 4.5, "min": 18, "max": 35 },
+      "Y": { "mean": 18.5, "sd": 1, "min": 17, "max": 20 }
+    },
+    "reserve": {
+      "S": { "mean": 21, "sd": 2, "min": 18, "max": 30 },
+      "R": { "mean": 19.5, "sd": 1.5, "min": 17, "max": 24 },
+      "Y": { "mean": 17.5, "sd": 0.6, "min": 17, "max": 18 }
+    }
+  },
+
+  "profile": {
+    "_note": "Rozdělení CEL na TS a FS. tsMinusCelSd = rozptyl typu hráče (technik vs. atlet). Mladí do 23 let mají FS nižší (dozrávání, design sekce 11).",
+    "tsMinusCelSd": 3.5,
+    "youthTechBiasPerYear": 0.8,
+    "youthTechBiasUntilAge": 23
+  },
+
+  "potential": {
+    "_note": "POT = CEL + mezera; mezera závisí na věku (lineární interpolace mezi body). Design: POT 85+ zhruba jednou za 3 roky v celé republice.",
+    "gapByAge": [[17, 14], [19, 10], [21, 6.5], [23, 4], [25, 2], [27, 1], [29, 0]],
+    "gapSd": 3.5,
+    "max": 95
+  },
+
+  "simpleResults": {
+    "_note": "Fáze 1: náhodné výsledky (Poisson). Silnější tým (průměrný CEL nejlepší jedenáctky) dostane bonus ke gólovému průměru, lineárně až do maxBonus při rozdílu celDiffForMaxBonus. Cíle: 1. liga ~2,5 gólu/zápas, MSFL ~3,2 (design, sekce 12).",
+    "goalsByLevel": {
+      "1": { "home": 1.35, "away": 1.05 },
+      "2": { "home": 1.48, "away": 1.17 },
+      "3": { "home": 1.72, "away": 1.38 }
+    },
+    "strengthBonus": { "maxBonus": 0.2, "celDiffForMaxBonus": 8 },
+    "teamStrengthTopN": 11
+  }
+}

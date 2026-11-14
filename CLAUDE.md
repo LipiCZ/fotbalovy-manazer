@@ -44,6 +44,12 @@ Směr závislostí: `ui → state → engine → data`. Engine nikdy neimportuje
 - Kluby mají `id` jako slug (`slavia-praha`, `slavia-praha-b`). B/C týmy mají `parentClubId`.
 - Pozice: kódy `GK CB LB RB DM CM AM LM RM LW RW ST`, v UI česky (BR SO LO PO DZ SZ OZ LZ PZ LK PK ÚT).
 
+## Otevřené body (neověřeno)
+
+- Data klubů mají `verified: false`: web FAČR nebyl z vývojového prostředí dostupný. Nejisté údaje jsou v poli `note`.
+- Pořadí kritérií tabulky (`data/competitions.json → tiebreakers`) je podle soutěžního řádu FAČR, jak ho známe; ověřit.
+- Barvy menších klubů jsou odhad (`note: "barvy odhad"`).
+
 ## Příkazy
 
 ```bash
@@ -58,5 +64,5 @@ npm run simulate -- --seed 42   # odsimuluje sezónu všech lig a vypíše tabul
 | Fáze | Obsah | Stav |
 | --- | --- | --- |
 | 0 | projekt, CLAUDE.md, design, git | hotovo |
-| 1 | kluby v JSON, generátor hráčů, rozpis, tabulky, simulace sezóny | rozpracováno |
+| 1 | kluby v JSON, generátor hráčů, rozpis, tabulky, simulace sezóny | hotovo |
 | 2–8 | viz `docs/design.md`, sekce 16 | – |
