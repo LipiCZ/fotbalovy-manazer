@@ -428,7 +428,11 @@
     "staminaEffect": 0.6,
     "effect": 0.35,
     "recoveryPerDay": 4,
-    "daysBetweenRounds": 7
+    "daysBetweenRounds": 7,
+    "ageFatigue": {
+      "_note": "Doplněk (design, sekce 12), fáze 4b: násobič úbytku kondice v zápase podle věku. Hodnoty NÁVRH (doplněno, ne ze zadání); mírné, protože výdrž od 32 let klesá už vývojem.",
+      "byAge": [[29, 1.0], [32, 1.04], [35, 1.1], [38, 1.15]]
+    }
   },
   "form": {
     "_note": "Forma = průměr posledních známek. Vliv na výkon je malý (nejvýš ±3 %), aby nevznikla smyčka bohatí bohatnou.",
@@ -462,7 +466,23 @@
         "types": ["natržené vazy", "únavová zlomenina", "poranění menisku"]
       },
       {"weight": 0.03, "minDays": 91, "maxDays": 240, "types": ["přetržený křížový vaz", "zlomenina nohy"]}
-    ]
+    ],
+    "planned": {
+      "_note": "Doplněk inspirovaný CSM (design, sekce 12), fáze 4b. Nahradí severities výše. Délky ze zadání, váhy a návrat po zranění jsou NÁVRH (doplněno, ne ze zadání) (váhy drží zhruba dnešní počet a délku zranění).",
+      "types": [
+        {"name": "lehké", "minDays": 7, "maxDays": 14, "weight": 0.55},
+        {"name": "střední", "minDays": 21, "maxDays": 42, "weight": 0.3},
+        {"name": "těžké", "minDays": 60, "maxDays": 180, "weight": 0.12},
+        {"name": "velmi těžké", "minDays": 180, "maxDays": 270, "weight": 0.03}
+      ],
+      "afterReturn": {
+        "_note": "NÁVRH (doplněno, ne ze zadání)",
+        "condition": 75,
+        "formRatingPenalty": 0.3,
+        "reinjuryDays": 28,
+        "reinjuryMultiplier": 2.0
+      }
+    }
   },
   "discipline": {
     "_note": "Tresty v lize. Stopka za každou 4. žlutou kartu (podle zadání). Délky trestů za červené jsou odhad, neověřeno proti disciplinárnímu řádu FAČR.",
@@ -470,7 +490,15 @@
     "yellowAccumulationBan": 1,
     "secondYellowBan": 1,
     "straightRedBan": {"matches": [1, 2, 3], "weights": [0.6, 0.3, 0.1]},
-    "resetYellowsAtSeasonEnd": true
+    "resetYellowsAtSeasonEnd": true,
+    "warnAtYellowsBeforeBan": 1,
+    "_warnNote": "Asistent upozorní na hráče, kterému chybí warnAtYellowsBeforeBan žlutá do stopky (tj. se 3 žlutými), fáze 4b.",
+    "postseason": {
+      "_note": "NEOVĚŘENO (jen zpravodajství, viz design sekce 12): v nadstavbě vlastní počítání žlutých. Zatím vypnuto, zapnout až po ověření pravidla.",
+      "separateCount": false,
+      "bans": [[2, 1], [4, 2]]
+    },
+    "cupSeparateCount": false
   },
   "ratings": {
     "_note": "Známky 1–10 podle designu (sekce 12) + malá výkonová složka (skill a šum podle konzistence). Cílový průměr ~6,5 (design, sekce 5: pásmo 6,3–6,7 = průměr).",
@@ -620,7 +648,53 @@
     "byAge": [[31, 0.03], [32, 0.06], [33, 0.14], [34, 0.25], [35, 0.4], [36, 0.6], [37, 0.8], [38, 0.95]],
     "weakBonus": 0.2,
     "weakFromAge": 30,
-    "weakCelBelowLeague": 10
+    "weakCelBelowLeague": 10,
+    "planned": {
+      "_note": "Doplněk inspirovaný CSM (design, sekce 5). Kód zatím používá byAge/weakBonus výše; ve fázi 4b je nahradí tato tabulka (smlouva a volní hráči ve fázi 6, ohlášení poslední sezóny ve fázi 7). Šance pro věk mezi body: platí nejbližší nižší věk; nad posledním bodem 100 %.",
+      "byPosition": {
+        "GK": [[37, 0.15], [38, 0.3], [39, 0.5], [40, 0.75], [41, 1.0]],
+        "DF": [[34, 0.1], [35, 0.2], [36, 0.35], [37, 0.55], [38, 0.75], [39, 1.0]],
+        "MF": [[33, 0.1], [34, 0.2], [35, 0.35], [36, 0.55], [37, 0.75], [38, 1.0]],
+        "FW": [[33, 0.15], [34, 0.25], [35, 0.4], [36, 0.6], [37, 0.8], [38, 1.0]]
+      },
+      "positionGroups": {
+        "_note": "NÁVRH (doplněno, ne ze zadání)",
+        "GK": ["GK"],
+        "DF": ["CB", "LB", "RB"],
+        "MF": ["DM", "CM", "AM", "LM", "RM"],
+        "FW": ["LW", "RW", "ST"]
+      },
+      "multipliers": {
+        "_note": "Násobí se, výsledek se omezí na 0–1.",
+        "superSeason": {"factor": 0.5, "minAvgRating": 7.0, "minMinutesShare": 0.7},
+        "contractNextSeason": {"factor": 0.7},
+        "thirdLevel": {"factor": 0.6},
+        "highProfessionalism": {
+          "factor": 0.8,
+          "minProfessionalism": 75,
+          "_note": "hranice 75 je NÁVRH (doplněno, ne ze zadání)"
+        },
+        "fewMinutes": {"factor": 1.5, "maxMinutesShare": 0.3},
+        "longInjury": {"factor": 1.5, "minDays": 90}
+      },
+      "freeAgentCertain": {"minAge": 32, "monthsWithoutOffer": 6},
+      "lastSeasonAnnouncement": {
+        "_note": "NÁVRH (doplněno, ne ze zadání): v lednu ohlásí hráč, jehož šance na konec je aspoň minChance; přemluvit jde s malou šancí.",
+        "month": 1,
+        "minChance": 0.5,
+        "persuadeSuccess": 0.15
+      },
+      "dropDownInstead": {
+        "_note": "NÁVRH (doplněno, ne ze zadání): místo konce kariéry odejde dohrát do nižší soutěže, pokud je jeho CEL aspoň o minCelAboveLeague nad úrovní nižší soutěže.",
+        "chance": 0.35,
+        "minCelAboveLeague": 3
+      },
+      "staffOffer": {
+        "_note": "NÁVRH (doplněno, ne ze zadání): po konci kariéry nabídka zůstat v klubu; schopnosti se odvodí z atributů (fáze 6).",
+        "chance": 0.2,
+        "roles": ["trenér mládeže", "skaut", "asistent"]
+      }
+    }
   },
   "training": {
     "_note": "Intenzita tréninku týmu hráče (design, sekce 3); AI trénuje normálně. Asistent volí tvrdý, je-li do zápasu aspoň hardIfDaysToMatch dní, lehký při nejvýš lightIfDaysToMatch dnech.",
@@ -630,5 +704,44 @@
     "assistant": {"hardIfDaysToMatch": 6, "lightIfDaysToMatch": 3},
     "injuryDays": [3, 21]
   },
-  "rotation": {"_note": "AI nenasadí do základu hráče s nižší kondicí, pokud má náhradu.", "minCondition": 82}
+  "rotation": {"_note": "AI nenasadí do základu hráče s nižší kondicí, pokud má náhradu.", "minCondition": 82},
+  "calibration": {
+    "_note": "Cíle kalibrace (design, sekce 12). Ve fázi 4b se sem přesunou i ostatní cíle ze scripts/lib/calibration.ts.",
+    "penaltyConversion": {"target": 0.77, "tolerance": 0.03}
+  },
+  "board": {
+    "_note": "Hodnocení sezóny a vyhazov (design, sekce 10 a 14): hodnocení ve fázi 5, vyhazov ve fázi 8. Stupně a pravidla vyhazovu ze zadání, čísla převodu a váhy jsou NÁVRH (doplněno, ne ze zadání).",
+    "grades": ["vynikající", "úspěšná", "přijatelná", "neúspěšná", "katastrofa"],
+    "gradeScore": {"vynikající": 2, "úspěšná": 1, "přijatelná": 0, "neúspěšná": -1, "katastrofa": -2},
+    "leaguePlacesBetterThanTarget": {
+      "_note": "rozdíl cílového a skutečného umístění (kladné = lepší) -> stupeň",
+      "vynikající": 3,
+      "úspěšná": 1,
+      "přijatelná": 0,
+      "neúspěšná": -3,
+      "_belowIs": "katastrofa (nebo sestup, se kterým se nepočítalo)"
+    },
+    "cupRoundsBeyondTarget": {
+      "vynikající": 2,
+      "úspěšná": 1,
+      "přijatelná": 0,
+      "neúspěšná": -1,
+      "_belowIs": "katastrofa"
+    },
+    "weights": {"league": {"success": 1.0, "failure": 1.0}, "cup": {"success": 0.6, "failure": 0.2}},
+    "sacking": {"onCatastrophe": true, "consecutiveFailures": 2}
+  },
+  "transfers": {
+    "_note": "Přestupy (design, sekce 8), fáze 6. Doplňky inspirované CSM; čísla jsou NÁVRH (doplněno, ne ze zadání).",
+    "aiBuysForWeakestPosition": true,
+    "leagueValueFactor": {"1": 1.0, "2": 0.45, "3": 0.2},
+    "leagueValueAdjustMonths": 6,
+    "loanWageShare": {"default": 0.5, "min": 0, "max": 1}
+  },
+  "captain": {
+    "_note": "Kapitán (design, sekce 11), fáze 7: tlumí propady formy a nálady týmu. Čísla jsou NÁVRH (doplněno, ne ze zadání).",
+    "minLeadership": 70,
+    "formDropDamping": 0.25,
+    "moraleDropDamping": 0.25
+  }
 }

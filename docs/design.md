@@ -132,6 +132,40 @@ Růst určuje věk, minuty a hlavně forma. Potenciál je očekávání, ne stro
 
 Kvalita náboru závisí na úrovni akademie, regionu a reputaci klubu (zatím jen podle velikosti klubu a úrovně soutěže; úroveň akademie a reputace přijdou ve fázi 7). PA nad 70 má zhruba jeden z deseti.
 
+**Konec kariéry** (doplněk inspirovaný CSM; implementace: tabulka a násobiče z dostupných údajů ve **fázi 4b**, smlouva, volní hráči a odchod do nižší soutěže ve **fázi 6**, ohlášení poslední sezóny v **fázi 7**, nabídka práce v klubu ve **fázi 6**). Kontrola proběhne na konci sezóny. Základní šance podle věku a pozice (pozice podle hlavní pozice hráče: obránce = SO, LO, PO; záložník = DZ, SZ, OZ, LZ, PZ; útočník = LK, PK, ÚT):
+
+| Věk | Brankář | Obránce | Záložník | Útočník |
+| --- | --- | --- | --- | --- |
+| 33 | – | – | 10 % | 15 % |
+| 34 | – | 10 % | 20 % | 25 % |
+| 35 | – | 20 % | 35 % | 40 % |
+| 36 | – | 35 % | 55 % | 60 % |
+| 37 | 15 % | 55 % | 75 % | 80 % |
+| 38 | 30 % | 75 % | 100 % | 100 % |
+| 39 | 50 % | 100 % | 100 % | 100 % |
+| 40 | 75 % | 100 % | 100 % | 100 % |
+| 41 | 100 % | 100 % | 100 % | 100 % |
+
+Násobiče se násobí a výsledek se omezí na 0–100 %:
+
+- super sezóna (průměrná známka ≥ 7,0 a ≥ 70 % odehraných minut): ×0,5,
+- platná smlouva i na další sezónu: ×0,7 (fáze 6),
+- hraje 3. ligu: ×0,6,
+- vysoká profesionalita (návrh: skrytý atribut ≥ 75): ×0,8,
+- málo minut (< 30 %): ×1,5,
+- dlouhé zranění v sezóně (> 3 měsíce): ×1,5,
+- volný hráč 32+ bez nabídky déle než 6 měsíců: konec kariéry jistě (fáze 6).
+
+Doplňky:
+
+- V zimě může hráč ohlásit, že je to jeho poslední sezóna: zpráva, rozloučení fanoušků, možnost ho přemluvit s malou šancí na úspěch (fáze 7, souvisí se vztahy a médii).
+- Místo konce kariéry může zkušený hráč odejít dohrát do nižší soutěže (fáze 6, potřebuje přestupy a volné hráče).
+- Po konci kariéry může klub dostat nabídku, že hráč zůstane jako trenér mládeže, skaut nebo asistent; jeho schopnosti se odvodí z hráčských atributů (fáze 6 spolu se skauty).
+
+*Rozpor s dosavadním stavem:* kód z fáze 4 ukončuje kariéry podle věku bez ohledu na pozici už od 31 let (3 %) a slabší hráče dřív. Nová tabulka začíná později (33–37 let) a hráče 3. ligy naopak drží déle (×0,6). Kalibrace světa ve fázi 4 přitom ukázala, že při řídkých koncích kariér svět stárne. Ve fázi 4b se proto nová tabulka musí znovu ověřit přes `npm run calibrate:world` a vyvážit jinde, nejspíš tím, že AI uvolňuje staré a slabé hráče. Ti do fáze 6 ze hry zmizí, od fáze 6 se z nich stanou volní hráči a uplatní se pravidlo „32+ bez nabídky 6 měsíců“. Pravidlo „slabší končí dřív“ se ve fázi 4b zruší.
+
+*Mezera v designu:* chybí správa štábu (asistent, trenér mládeže). Kvalita asistenta je zmíněná v sekcích 3 a 12, ale najímání nikde, a nabídka „zůstat jako trenér nebo skaut“ ho potřebuje. Navrhuji štáb doplnit ve fázi 6 spolu se skauty.
+
 ## 6. Skauting a talenty
 
 Skaut ukazuje CA a PA jako rozsah, který předpokládá průměrnou formu a průměrný vývoj. Skutečnost se liší podle formy, minut a náhody.
@@ -210,7 +244,7 @@ Malý klub získává kvalitu hlavně přes mladíky velkých klubů se smluvní
 **Tržní hodnota:**
 
 ```latex
-\text{hodnota} = \text{základ (CA, věk)} \times \text{reputace} \times \text{smlouva} \times \text{forma}
+\text{hodnota} = \text{základ (CA, věk)} \times \text{reputace} \times \text{smlouva} \times \text{forma} \times \text{soutěž (od fáze 6)}
 ```
 
 **Finanční ředitel:** u každé nabídky porovná částku s tržní hodnotou, odhadne, kolik kupující maximálně zaplatí, a doporučí protinávrh včetně klauzulí. Přesnost jeho odhadu závisí na jeho kvalitě.
@@ -238,6 +272,12 @@ Malý klub získává kvalitu hlavně přes mladíky velkých klubů se smluvní
 **Jak AI klub ocení hráče:** tržní hodnota × důležitost hráče pro klub × potřeba peněz × délka smlouvy × termín (konec okna zvyšuje tlak). Splátky bývají dražší než platba najednou.
 
 **Živý trh:** AI kluby kupují, prodávají a hostují mezi sebou podle stejných pravidel. Velké kluby se budou zajímat i o tvoje talenty.
+
+**Doplňky inspirované CSM (fáze 6):**
+
+- AI kluby kupují hlavně na svou nejslabší pozici (podle síly nejlepší jedenáctky po pozicích, viz výběr sestavy z fáze 2).
+- Tržní hodnota závisí i na úrovni soutěže: do vzorce výše přibude násobič soutěže. Po přestupu do vyšší soutěže roste postupně během sezóny (návrh: lineárně za 6 měsíců), aby nešlo koupit levně ve 3. lize a hned draze přeprodat.
+- Hostování: součástí dohody je podíl platu, který platí každý z klubů (návrh: výchozí 50 : 50).
 
 ## 9. Stadion a město
 
@@ -270,6 +310,15 @@ Hlavní režim je kariéra od dna ve 3. lize. Volný výběr je doplňkový.
 
 **Kariéra trenéra:** reputace trenéra roste s úspěchy. Nabídky od větších klubů chodí vzácně a jdou odmítnout. Při dlouhé krizi hrozí vyhazov.
 
+**Hodnocení sezóny a vyhazov** (doplněk inspirovaný CSM; cíle vedení a jejich hodnocení ve **fázi 5** spolu s rozpočtem od vedení, vyhazov ve **fázi 8** s kariérou trenéra, průběžný ukazatel ve vztazích ve **fázi 7**):
+
+- Každý cíl vedení (liga, pohár) se hodnotí 5 stupni: vynikající, úspěšná, přijatelná, neúspěšná, katastrofa. Návrh převodu: liga podle rozdílu skutečného a cílového umístění, pohár podle rozdílu dosaženého a cílového kola.
+- Pohár je nesymetrický: úspěch hodně pomůže, neúspěch tolik neuškodí (váhy v `balance.json → board`).
+- **Vyhazov:** při katastrofální sezóně, nebo po dvou neúspěšných sezónách za sebou.
+- Ukazatel „Vedení“ ve vztazích (sekce 14) tohle hodnocení jen průběžně zobrazuje, sám o vyhazovu nerozhoduje.
+
+*Otevřená otázka:* sekce 13 a 14 říkají, že vedení hodnotí i finance (účetní výsledek, „zdravé finance“), ale doplněk zná jen cíle liga a pohár. Navrhuji jako třetí cíl přidat finance (hodnocené stejnou stupnicí). Rozhodnutí je na tobě.
+
 ## 11. Hráči a atributy
 
 Hodnocení hráče stojí na dvou číslech: technické schopnosti (TS) a fyzické schopnosti (FS). Z nich vzniká celkové hodnocení (CEL). CEL odpovídá aktuální schopnosti (CA) a POT potenciálu (PA) ze sekce 5. Na první pohled je vidět, jaký typ hráče to je.
@@ -290,7 +339,9 @@ Poměr 50/50 je výchozí a je uložený v datech, aby se dal ladit podle pozice
 
 Uvnitř TS a FS mají atributy váhy podle pozice (uložené v datech). Příklad pro útočníka: TS = zakončení 35 %, výběr místa 25 %, technika 20 %, hlavičky 10 %, přihrávka 10 %; FS = rychlost 30 %, akcelerace 25 %, síla 25 %, výskok 10 %, výdrž 10 %.
 
-**Mentalita:** žádná samostatná skupina. Výběr místa a rozhodování patří do TS. V profilu zůstává jen vůdcovství jako drobnost pro volbu kapitána.
+**Mentalita:** žádná samostatná skupina. Výběr místa a rozhodování patří do TS. V profilu zůstává vůdcovství pro volbu kapitána.
+
+**Kapitán** (doplněk inspirovaný CSM, **fáze 7** spolu s morálkou a náladou kabiny): kapitán s vysokým vůdcovstvím mírně tlumí propady formy a nálady týmu (návrh: od vůdcovství 70, tlumení 25 %). Tím se mění dřívější formulace „vůdcovství je jen drobnost“. Kód už kapitána vybírá a vůdcovství s věkem roste (fáze 2 a 4), účinek zatím nemá.
 
 **Skryté atributy:** potenciál, adaptace, profesionalita, konzistence, náchylnost ke zraněním. Bez „velkých zápasů“ a ambicí. Touhu hrát řídí forma a morálka.
 
@@ -329,7 +380,7 @@ Navíc exekutor standardek a kapitán. **Každé nastavení má ve hře nápově
 
 **Trávník:** jen malý vliv, aby nekazil hru. Nejhorší trávník sníží účinnost kombinační hry nejvýš o 3 % a riziko zranění zvýší zhruba o desetinu.
 
-**Kalibrace:** průměr gólů v 1. lize kolem 2,5 na zápas ([2025/26](https://football.fandom.com/wiki/2025%E2%80%9326_Czech_First_League)), v nižších soutěžích víc (MSFL kolem 3,2 gólu, 45 % domácích výher, 25 % remíz podle [SofaScore](https://www.sofascore.com/hu/bajnoksag/foci/czech-republic/msfl/9386)). Tým 3. ligy má proti špičce 1. ligy v poháru šanci zhruba 5–10 %.
+**Kalibrace:** průměr gólů v 1. lize kolem 2,5 na zápas ([2025/26](https://football.fandom.com/wiki/2025%E2%80%9326_Czech_First_League)), v nižších soutěžích víc (MSFL kolem 3,2 gólu, 45 % domácích výher, 25 % remíz podle [SofaScore](https://www.sofascore.com/hu/bajnoksag/foci/czech-republic/msfl/9386)). Tým 3. ligy má proti špičce 1. ligy v poháru šanci zhruba 5–10 %. **Proměňování penalt ~77 %** (doplněk; cíl měl být v kalibraci už ve fázi 2, test přibude ve **fázi 4b**). Změřeno na současném enginu: 78,2 % z 2 740 penalt v 6 sezónách, takže cíl sedí a jde jen o přidání kontroly.
 
 **Známky (1–10):** základ 6,0; gól +1,0; asistence +0,6; klíčová přihrávka +0,2; chyba ke gólu −0,8; vyloučení −1,5; zákrok brankáře +0,15; inkasovaný gól brankáře −0,3; výsledek týmu ±0,3.
 
@@ -348,6 +399,30 @@ Navíc exekutor standardek a kapitán. **Každé nastavení má ve hře nápově
 - **Známky:** ke vzorci výše přibyla malá výkonová složka (lepší hráč na svém místě o něco výš, šum podle konzistence). Průměr je zhruba 6,4–6,5, což odpovídá pásmu „průměr“ v tabulce růstu (sekce 5).
 - **Engine je krokovač** (minuta po minutě), takže živý režim (sekce 4) ho použije beze změn.
 - **Mezi koly** zatím počítáme 7 dní (kondice se obnoví, zranění se hojí), dokud nebude kalendář.
+
+**Karty a tresty** (doplněk; pravidlo platí už od fáze 2, upozornění přibude ve **fázi 4b**): každé 4 žluté = stopka na 1 zápas, červená = 1–3 zápasy. Asistent předem upozorní na hráče se 3 žlutými (obecně „jedna žlutá do stopky“).
+
+*Ověření pravidla FAČR:* oficiální disciplinární ani soutěžní řád se z vývojového prostředí ověřit nepodařilo, weby FAČR, LFA i zpravodajské weby jsou blokované. Vyhledávač vrátil jen sekundární zdroje (zpravodajství), takže následující body jsou **neověřené** a slouží jako podklad pro tvé ověření:
+
+- 4. žlutá v sezóně = stop na 1 zápas: zpravodajství to uvádí shodně se hrou.
+- Nadstavba má podle zprávy TN.cz vlastní počítání: žluté ze základní části se nepřenáší, 2. žlutá = 1 zápas, 4. žlutá = 2 zápasy. Hra teď počítá žluté přes celou sezónu včetně nadstavby.
+- Délku trestu za červenou kartu určuje disciplinární komise. Ve zprávách se objevují tresty na 1 i 3 zápasy, což sedí s rozsahem 1–3.
+- Jak se počítají žluté v MOL Cupu, ze zdrojů nevyplynulo. Hra je teď sčítá s ligou, ve skutečnosti se pravděpodobně počítají zvlášť.
+
+*Návrh úprav po ověření:* oddělit počítání karet pro pohár a pro nadstavbu (příprava v `balance.json → discipline.postseason`, zatím vypnuto).
+
+**Zranění** (doplněk, **fáze 4b**): čtyři typy podle délky:
+
+| Typ | Délka |
+| --- | --- |
+| lehké | 1–2 týdny |
+| střední | 3–6 týdnů |
+| těžké | 2–6 měsíců |
+| velmi těžké | 6–9 měsíců |
+
+Po návratu má hráč nižší kondici a formu a několik týdnů vyšší riziko, že se zraní znovu. Starší hráči se v zápase unaví rychleji (koeficient podle věku v `balance.json → condition.ageFatigue`).
+
+*Rozpor s kódem:* fáze 2 má nejkratší zranění 3 dny a nejdelší 8 měsíců (4 skupiny s jinými hranicemi) a zranění z tréninku 3–21 dní. Obojí se ve fázi 4b převede na nové typy. Únava podle věku se počítá navíc k výdrži, která se od 32 let snižuje vývojem. Koeficient proto musí být mírný, jinak se pokles započítá dvakrát. Po zavedení je nutná kalibrace (`npm run calibrate`, počet zranění na zápas).
 
 ## 13. Ekonomika a účetnictví
 
@@ -412,7 +487,7 @@ Tahle vrstva dává hře atmosféru a zpětnou vazbu, ale čísla mění jen má
 | Ukazatel | Zvedají ho | Srážejí ho | Vliv na |
 | --- | --- | --- | --- |
 | Fanoušci | výhry, derby, odchovanci v sestavě, góly, hvězdy | prohry, drahé vstupenky, prodej oblíbence | návštěvnost, permanentky, fanshop |
-| Vedení | plnění cílů, zdravé finance | ztráty, nesplněný cíl | rozpočet, místo trenéra (pod 20 % hrozí vyhazov) |
+| Vedení | plnění cílů, zdravé finance | ztráty, nesplněný cíl | rozpočet; průběžně zobrazuje hodnocení sezóny (sekce 10), o vyhazovu rozhoduje to hodnocení |
 | Město | výsledky, mládež, akce pro komunitu | skandály | dotace a stadion |
 | Kabina | výhry, minuty, férové smlouvy, bavič | lavička pro hráče ve formě, nevyplacené prémie | morálka a výkon |
 
@@ -473,7 +548,8 @@ fotbalovy-manazer/
 | 2 | model hráče (CEL, TS, FS, forma, kondice), simulace zápasu, známky, kalibrace | 1 000 sezón dá průměr gólů a domácích výher v cílovém rozsahu |
 | 3 | základní UI: Domů, Soupiska, Profil, Taktika, rychlý zápas, Soutěže, Pokračovat, ukládání | **MVP: odehraju celou sezónu** (hotovo) |
 | 4 | vývoj hráčů, stárnutí, mládež, B-týmy, přechod sezóny, postupy, nadstavba, baráže, MOL Cup | odehraju 5 sezón za sebou (hotovo) |
-| 5 | ekonomika: rozpočet, platy, vstupné, transakce, výkazy, cash flow | sezónní report s výkazy |
+| 4b | doplňky inspirované CSM k hotovým částem: konce kariér podle pozic, zranění podle typů a návrat po zranění, únava podle věku, upozornění na 3 žluté, kalibrace penalt | `calibrate` a `calibrate:world` projdou |
+| 5 | ekonomika: rozpočet, platy, vstupné, transakce, výkazy, cash flow; cíle vedení a jejich hodnocení | sezónní report s výkazy a hodnocením sezóny |
 | 6 | přestupy, smlouvy, přestupní listina, volní hráči, skauting, živý trh AI | koupím, prodám a najdu talent |
 | 7 | stadion, město, investor, vztahy, média, humor | vytáhnu klub o ligu výš |
 | 8 | živý režim zápasu, kariéra trenéra, ceny sezóny, ladění | kompletní hra |
@@ -497,6 +573,10 @@ Sekce 1–15 jsou odsouhlasené, sekce 16 je návrh technického plánu. Zbývá
 - [ ] Uživatelské rozhraní (hotovo, sekce 15)
 - [ ] Technická architektura a plán MVP pro Claude Code (návrh, sekce 16)
 - [ ] Ověřit seznamy 2. a 3. ligy proti FAČR
+- [ ] Ověřit disciplinární pravidla FAČR (žluté v nadstavbě a v poháru, tresty za červené), viz sekce 12
+- [x] Doplňky inspirované Czech Soccer Managerem zapsané (sekce 5, 8, 10, 11, 12, 14); implementace podle fází v sekci 16
+
+**Možná později** (vědomě vynecháno): trénování reprezentace, herní scénáře (výzvy), editor dat ve hře.
 
 ## Zdroje
 
@@ -507,5 +587,7 @@ Sekce 1–15 jsou odsouhlasené, sekce 16 je návrh technického plánu. Zbývá
 - [ČFL B 2026/27 (futbol24)](https://www.futbol24.com/national/Czech-Rep/CFL/2026-2027/Group-B)
 - [MSFL 2026/27 (BetExplorer)](https://www.betexplorer.com/football/czech-republic/3-msfl/)
 - [MOL Cup, osmifinále a finále (České noviny)](https://www.ceskenoviny.cz/zpravy/2893359)
+
+- Inspirace pro doplňky v sekcích 5, 8, 10, 11 a 12: wiki Czech Soccer Manageru (csmweb.net, stránky skills, zapas, kariera, obchod). CSM není vzor, jen inspirace. Stránky nebyly z vývojového prostředí načtené, doplňky vycházejí ze zadání.
 
 * Výroční zpráva SK Slavia Praha – fotbal a.s. k 30. 6. 2025 (nahraná uživatelem): účetní postupy k hráčům, struktura výnosů a nákladů
