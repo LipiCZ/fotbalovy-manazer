@@ -6,7 +6,7 @@
 
 import type { Balance, Band, Formation, Mentality } from '../data.ts';
 import { positionFit, slotValue, type Tactics, type TeamSheet } from '../lineup.ts';
-import { celAt, fsAt, tsAt } from '../players/rating.ts';
+import { ageOn, celAt, fsAt, tsAt } from '../players/rating.ts';
 import type { Rng } from '../rng.ts';
 import type { Level, Player, Position } from '../types.ts';
 import { explainMatch } from './explain.ts';
@@ -22,6 +22,13 @@ export interface MatchContext {
   homeAdvantage?: boolean;
   /** When true the assistant decides substitutions and mentality changes for this side. */
   autopilot?: Record<Side, boolean>;
+  /** Match date (ISO); enables the adaptation penalty of young players. */
+  date?: string;
+  /**
+   * Knockout match: when level after 90 minutes, extra time (2 × 15) and penalties follow.
+   * For the second leg of a two-legged tie pass the first leg's goals (from this match's home/away view).
+   */
+  knockout?: { firstLeg?: { home: number; away: number } };
 }
 
 interface OnPitch {
@@ -59,6 +66,10 @@ export interface MatchState {
   ctx: MatchContext;
   step: number;
   length: number;
+  /** Length of regular time incl. added time (extra time follows after it). */
+  regularLength: number;
+  extraTime: boolean;
+  penalties?: [number, number];
   addedFirst: number;
   addedSecond: number;
   home: TeamState;
@@ -84,7 +95,17 @@ function formFactor(player: Player, balance: Balance): number {
   return 1 + clamp((avg - f.neutral) * f.effectPerPoint, -f.maxEffect, f.maxEffect);
 }
 
-function makeOnPitch(player: Player, slot: Position, line: PlayerMatchLine, balance: Balance): OnPitch {
+/** Young players in their first months of senior football perform a little worse (design, section 5). */
+function adaptationFactor(player: Player, date: string | undefined, balance: Balance): number {
+  if (!date) return 1;
+  const a = balance.development.adaptation;
+  if (ageOn(player.birthDate, date) > a.untilAge) return 1;
+  const needed = a.minMonths + ((100 - player.hidden.adaptation) / 100) * (a.maxMonths - a.minMonths);
+  const months = player.state.seniorMonths ?? needed;
+  return months >= needed ? 1 : 1 - a.penalty * (1 - months / needed);
+}
+
+function makeOnPitch(player: Player, slot: Position, line: PlayerMatchLine, balance: Balance, date?: string): OnPitch {
   const a = player.attributes;
   return {
     player,
@@ -99,7 +120,7 @@ function makeOnPitch(player: Player, slot: Position, line: PlayerMatchLine, bala
     shoot: 0.6 * a.finishing + 0.2 * a.technique + 0.2 * a.positioning,
     header: 0.6 * a.heading + 0.4 * a.jumping,
     condition: player.state.condition,
-    formFactor: formFactor(player, balance),
+    formFactor: formFactor(player, balance) * adaptationFactor(player, date, balance),
   };
 }
 
@@ -174,7 +195,7 @@ function initTeam(state: Pick<MatchState, 'lines' | 'ctx'>, sheet: TeamSheet, si
     const slot = sheet.slots[i] as Position;
     const line = newLine(p, sheet.clubId, side, slot, true);
     state.lines.push(line);
-    return makeOnPitch(p, slot, line, balance);
+    return makeOnPitch(p, slot, line, balance, state.ctx.date);
   });
   return {
     side,
@@ -202,6 +223,8 @@ export function createMatch(home: TeamSheet, away: TeamSheet, ctx: MatchContext)
     ctx,
     step: 0,
     length: 2 * half + addedFirst + addedSecond,
+    regularLength: 2 * half + addedFirst + addedSecond,
+    extraTime: false,
     addedFirst,
     addedSecond,
     home: initTeam(partial, home, 'home'),
@@ -217,12 +240,14 @@ export function createMatch(home: TeamSheet, away: TeamSheet, ctx: MatchContext)
 }
 
 /** Display minute for a step (1-based). */
-export function clockOf(state: Pick<MatchState, 'addedFirst' | 'ctx'>, step: number): { minute: number; added?: number } {
+export function clockOf(state: Pick<MatchState, 'addedFirst' | 'addedSecond' | 'ctx'>, step: number): { minute: number; added?: number } {
   const half = state.ctx.balance.match.halfMinutes;
   if (step <= half) return { minute: step };
   if (step <= half + state.addedFirst) return { minute: half, added: step - half };
   if (step <= 2 * half + state.addedFirst) return { minute: step - state.addedFirst };
-  return { minute: 2 * half, added: step - 2 * half - state.addedFirst };
+  const regular = 2 * half + state.addedFirst + state.addedSecond;
+  if (step <= regular) return { minute: 2 * half, added: step - 2 * half - state.addedFirst };
+  return { minute: 2 * half + (step - regular) };
 }
 
 // ---------------------------------------------------------------- helpers
@@ -280,7 +305,7 @@ function substitute(state: MatchState, team: TeamState, slotIndex: number): bool
   team.bench = team.bench.filter((p) => p !== incoming);
   const line = newLine(incoming, team.sheet.clubId, team.side, slot, false);
   state.lines.push(line);
-  team.pitch[slotIndex] = makeOnPitch(incoming, slot, line, balance);
+  team.pitch[slotIndex] = makeOnPitch(incoming, slot, line, balance, state.ctx.date);
   team.subsUsed++;
   team.stats.subs++;
   team.windowMinutes.add(clockOf(state, state.step).minute);
@@ -311,7 +336,7 @@ function removeFromPitch(state: MatchState, team: TeamState, op: OnPitch): void 
   const keeper = [...outfield].sort((a, b) => b.gk - a.gk)[0];
   if (keeper) {
     team.pitch[team.pitch.indexOf(keeper)] = null;
-    team.pitch[idx] = makeOnPitch(keeper.player, 'GK', keeper.line, state.ctx.balance);
+    team.pitch[idx] = makeOnPitch(keeper.player, 'GK', keeper.line, state.ctx.balance, state.ctx.date);
     (team.pitch[idx] as OnPitch).condition = keeper.condition;
   }
 }
@@ -530,8 +555,63 @@ export function stepMinute(state: MatchState): MatchEvent[] {
     assistant(state, team);
   }
 
-  if (state.step >= state.length) state.finished = true;
+  if (state.step >= state.length) {
+    if (needsDecision(state) && !state.extraTime) {
+      state.extraTime = true;
+      state.length += EXTRA_TIME_MINUTES;
+    } else {
+      if (needsDecision(state)) state.penalties = penaltyShootout(state);
+      state.finished = true;
+    }
+  }
   return state.events.slice(before);
+}
+
+const EXTRA_TIME_MINUTES = 30;
+
+/** Knockout still undecided (level score, or level aggregate in a second leg). */
+function needsDecision(state: MatchState): boolean {
+  const k = state.ctx.knockout;
+  if (!k) return false;
+  const home = state.home.stats.goals + (k.firstLeg?.home ?? 0);
+  const away = state.away.stats.goals + (k.firstLeg?.away ?? 0);
+  return home === away;
+}
+
+/** Penalty shoot-out: 5 kicks each, then sudden death. Takers by set pieces + finishing. */
+function penaltyShootout(state: MatchState): [number, number] {
+  const { rng } = state.ctx;
+  const takers = (team: TeamState) => {
+    const ops = onPitch(team);
+    const sorted = [...ops].sort(
+      (a, b) =>
+        b.player.attributes.setPieces + b.player.attributes.finishing - (a.player.attributes.setPieces + a.player.attributes.finishing) ||
+        a.player.id.localeCompare(b.player.id),
+    );
+    return sorted.length > 0 ? sorted : [];
+  };
+  const kick = (team: TeamState, opp: TeamState, i: number): boolean => {
+    const list = takers(team);
+    const taker = list[i % Math.max(1, list.length)];
+    if (!taker) return false;
+    const skill = 0.5 * taker.player.attributes.setPieces + 0.5 * taker.player.attributes.finishing;
+    const p = Math.min(0.9, Math.max(0.55, 0.75 + (skill - opp.bands.gk) / 200));
+    return rng.chance(p);
+  };
+  let h = 0;
+  let a = 0;
+  for (let i = 0; i < 5; i++) {
+    if (kick(state.home, state.away, i)) h++;
+    if (h > a + (5 - i)) break;
+    if (kick(state.away, state.home, i)) a++;
+    if (a > h + (4 - i) || h > a + (4 - i)) break;
+  }
+  for (let i = 5; h === a && i < 40; i++) {
+    if (kick(state.home, state.away, i)) h++;
+    if (kick(state.away, state.home, i)) a++;
+  }
+  if (h === a) h++; // practically unreachable; keeps the result decided
+  return [h, a];
 }
 
 /** Final report with ratings. The match must be finished. */
@@ -554,6 +634,8 @@ export function finishMatch(state: MatchState): MatchReport {
     manOfTheMatchId: null,
     explanation: [],
     length: state.length,
+    ...(state.extraTime ? { extraTime: true } : {}),
+    ...(state.penalties ? { penalties: state.penalties } : {}),
   };
   const players = new Map<string, Player>();
   for (const team of [state.home, state.away]) {

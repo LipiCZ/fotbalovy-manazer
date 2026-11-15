@@ -1,55 +1,80 @@
-// Game loop: the season advances by match days. Every call plays all league rounds scheduled for
-// the next match date (design, section 3: "Pokračovat" moves time to the next match).
-// All randomness is derived from the seed per match, so a loaded game continues identically.
+// Game loop: the season advances by match days (design, section 3: "Pokračovat" moves time to the
+// next match). A match day plays every league round, post-season fixture and cup tie scheduled
+// for that date. Between match days time passes: condition recovers (depending on training),
+// injuries heal, and on the 1st of every month players develop (design, section 5).
+// All randomness is derived from the seed per match / per day, so a loaded game continues identically.
 
-import type { GameData } from '../data.ts';
-import { lineupStrength } from '../lineup.ts';
+import type { GameData, TrainingIntensity } from '../data.ts';
+import { lineupStrength, type TeamSheet } from '../lineup.ts';
 import { playMatch } from '../match/engine.ts';
 import type { MatchReport } from '../match/types.ts';
-import { Rng, type Seed } from '../rng.ts';
+import { overall } from '../players/rating.ts';
+import type { Seed } from '../rng.ts';
 import { doubleRoundRobin } from '../schedule.ts';
-import { computeTable } from '../table.ts';
-import type { CompetitionId, Fixture, Player, TableRow } from '../types.ts';
+import type { CompetitionId, Level, Player, TableRow } from '../types.ts';
 import { createWorld, type World } from '../world.ts';
-import { daysBetween, roundDates, seasonStart } from './calendar.ts';
-import { applyMatchToPlayers, passDays } from './playerState.ts';
+import { addDays, daysBetween, parseDate, roundDates, seasonStart } from './calendar.ts';
+import { createCup, cupFinished, cupLevel, nextCupDate, progressCup } from './cup.ts';
+import { academyIntake, developmentTick, manageSquads, resolveTraining } from './development.ts';
+import { applyMatchToPlayers } from './playerState.ts';
+import { firstLeagueOrder, postseasonDone, progressPostseason, regularTable, seasonRngOf } from './postseason.ts';
+import { membersOf, type Membership } from './pyramid.ts';
 import { aiSheet, selectionFor, type SelectionCache } from './selection.ts';
-import { SAVE_VERSION, type CompetitionProgress, type GameState, type MatchSummary, type NewsItem } from './state.ts';
+import {
+  SAVE_VERSION,
+  type CompetitionProgress,
+  type DatedFixture,
+  type GameState,
+  type MatchSummary,
+  type NewsItem,
+  type StageId,
+} from './state.ts';
 import { recordStats } from './stats.ts';
 import { initialUserTeam, prepareUserSheet, userStrength } from './userTeam.ts';
 
-const MAX_NEWS = 60;
+const MAX_NEWS = 80;
 
 // ---------------------------------------------------------------- runtime indexes (not saved)
 
 interface Runtime {
   players: Player[];
   byId: Map<string, Player>;
+  /** Senior players by club (academy players excluded). */
   byClub: Map<string, Player[]>;
+  academy: Map<string, Player[]>;
   selection: SelectionCache;
 }
 const runtimes = new WeakMap<GameState, Runtime>();
+
+export function invalidateRuntime(state: GameState): void {
+  runtimes.delete(state);
+}
 
 export function runtimeOf(state: GameState): Runtime {
   const cached = runtimes.get(state);
   if (cached && cached.players === state.players) return cached;
   const byClub = new Map<string, Player[]>();
+  const academy = new Map<string, Player[]>();
   for (const p of state.players) {
-    const list = byClub.get(p.clubId) ?? [];
+    const target = p.academy ? academy : byClub;
+    const list = target.get(p.clubId) ?? [];
     list.push(p);
-    byClub.set(p.clubId, list);
+    target.set(p.clubId, list);
   }
-  for (const list of byClub.values()) list.sort((a, b) => a.id.localeCompare(b.id));
-  const rt: Runtime = { players: state.players, byId: new Map(state.players.map((p) => [p.id, p])), byClub, selection: new Map() };
+  for (const list of [...byClub.values(), ...academy.values()]) list.sort((a, b) => a.id.localeCompare(b.id));
+  const rt: Runtime = { players: state.players, byId: new Map(state.players.map((p) => [p.id, p])), byClub, academy, selection: new Map() };
   runtimes.set(state, rt);
   return rt;
 }
 
+/** Senior squad of a club. */
 export function squadOf(state: GameState, clubId: string): Player[] {
   return runtimeOf(state).byClub.get(clubId) ?? [];
 }
 
-const seasonRng = (state: Pick<GameState, 'seed' | 'seasonYear'>) => new Rng(`${state.seed}/season-${state.seasonYear}`);
+export function academyOf(state: GameState, clubId: string): Player[] {
+  return runtimeOf(state).academy.get(clubId) ?? [];
+}
 
 // ---------------------------------------------------------------- creation
 
@@ -57,6 +82,31 @@ export interface NewGameOptions {
   seed: Seed;
   userClubId: string | null;
   managerName?: string;
+}
+
+/** League fixtures and dates for the current membership. */
+export function buildCompetitions(state: Pick<GameState, 'seed' | 'seasonYear' | 'membership'>, data: GameData): CompetitionProgress[] {
+  const rng = seasonRngOf(state);
+  return data.competitions.map((competition) => {
+    const clubIds = data.clubs.filter((c) => state.membership[c.id] === competition.id).map((c) => c.id);
+    const fixtures = doubleRoundRobin(clubIds, rng.fork(competition.id).fork('draw'));
+    const rounds = Math.max(...fixtures.map((f) => f.round));
+    return { id: competition.id, clubIds, fixtures, roundDates: roundDates(competition, state.seasonYear, rounds), playedRounds: 0, results: [] };
+  });
+}
+
+/** Clubs ordered for cup seeding: last season's 1st league order, otherwise squad strength. */
+function cupSeeds(state: GameState, data: GameData): string[] {
+  const last = state.history.at(-1)?.standings[data.pyramid.firstLeague.id];
+  if (last) return last;
+  return membersOf(state.membership, data.pyramid.firstLeague.id)
+    .map((id) => ({ id, s: selectionFor(id, squadOf(state, id), data, runtimeOf(state).selection).strength }))
+    .sort((a, b) => b.s - a.s)
+    .map((x) => x.id);
+}
+
+export function startCup(state: GameState, data: GameData): void {
+  state.cup = createCup(state, data, cupSeeds(state, data), seasonRngOf(state).fork('cup'));
 }
 
 /** Game state for an existing world (players are copied, the world is not changed). */
@@ -67,30 +117,39 @@ export function createGameState(world: World, opts: NewGameOptions): GameState {
     if (!club) throw new Error(`Neznámý klub ${opts.userClubId}`);
     if (club.parentClubId) throw new Error('B a C týmy nejde vést, vyber A-tým.');
   }
-  const base = { seed: String(opts.seed), seasonYear: world.seasonYear };
-  const rng = seasonRng(base);
-  const players = structuredClone(world.players) as Player[];
-
-  const competitions: CompetitionProgress[] = data.competitions.map((competition) => {
-    const clubIds = data.clubs.filter((c) => c.competitionId === competition.id).map((c) => c.id);
-    const fixtures = doubleRoundRobin(clubIds, rng.fork(competition.id).fork('draw'));
-    const rounds = Math.max(...fixtures.map((f) => f.round));
-    return { id: competition.id, clubIds, fixtures, roundDates: roundDates(competition, world.seasonYear, rounds), playedRounds: 0, results: [] };
+  const membership: Membership = Object.fromEntries(data.clubs.map((c) => [c.id, c.competitionId]));
+  const start = seasonStart(world.seasonYear);
+  const players = (structuredClone(world.players) as (Player & { role?: unknown })[]).map((p) => {
+    const { role: _role, ...rest } = p;
+    void _role;
+    const age = (parseDate(start) - parseDate(p.birthDate)) / (365.25 * 86_400_000);
+    return {
+      ...rest,
+      state: { ...rest.state, seniorMonths: Math.max(0, Math.round((age - 17) * 12)) },
+      career: [],
+      celHistory: [overall(rest, data.balance)],
+    } as Player;
   });
-
   const state: GameState = {
     version: SAVE_VERSION,
-    ...base,
+    seed: String(opts.seed),
+    seasonYear: world.seasonYear,
     managerName: opts.managerName ?? '',
     userClubId: opts.userClubId,
-    date: seasonStart(world.seasonYear),
+    date: start,
+    membership,
     players,
-    competitions,
+    competitions: [],
+    stages: [],
+    cup: null,
     user: null,
     playerStats: {},
     news: [],
+    history: [],
     finished: false,
   };
+  state.competitions = buildCompetitions(state, data);
+  startCup(state, data);
   if (opts.userClubId !== null) state.user = initialUserTeam(squadOf(state, opts.userClubId), data);
   return state;
 }
@@ -99,57 +158,293 @@ export function newGame(data: GameData, opts: { seed: Seed; clubId: string; mana
   return createGameState(createWorld(data, opts.seed, opts.seasonYear), { seed: opts.seed, userClubId: opts.clubId, managerName: opts.managerName });
 }
 
-// ---------------------------------------------------------------- queries
+// ---------------------------------------------------------------- scheduled matches
+
+/** One match planned for a date, from any competition. */
+interface PlannedMatch {
+  date: string;
+  homeId: string;
+  awayId: string;
+  level: Level;
+  label: string;
+  rngKey: string;
+  knockout?: { firstLeg?: { home: number; away: number } };
+  neutral?: boolean;
+  /** Where to store the result. */
+  store: (summary: MatchSummary) => void;
+  /** Round stored in the result (identifies the fixture). */
+  fixtureRound: number;
+  /** League competition and round (for UI; null for post-season and cup). */
+  competitionId: CompetitionId | null;
+  round: number | null;
+}
+
+const STAGE_LABEL: Record<StageId, string> = {
+  'title-group': 'Skupina o titul',
+  'relegation-group': 'Skupina o záchranu',
+  'placement-semi': 'Play-off o umístění, semifinále',
+  'placement-final': 'Play-off o umístění, finále',
+  barrage: 'Baráž',
+};
+
+function matchesOn(state: GameState, data: GameData, date: string): PlannedMatch[] {
+  const out: PlannedMatch[] = [];
+  for (const progress of state.competitions) {
+    if (progress.roundDates[progress.playedRounds] !== date) continue;
+    const competition = data.competitions.find((c) => c.id === progress.id);
+    if (!competition) continue;
+    const round = progress.playedRounds + 1;
+    for (const f of progress.fixtures.filter((x) => x.round === round))
+      out.push({
+        date,
+        homeId: f.homeId,
+        awayId: f.awayId,
+        level: competition.level,
+        label: `${competition.name}, ${round}. kolo`,
+        rngKey: `${progress.id}:${round}:${f.homeId}`,
+        store: (s) => progress.results.push(s),
+        fixtureRound: round,
+        competitionId: progress.id,
+        round,
+      });
+  }
+  for (const stage of state.stages) {
+    stage.fixtures.forEach((f: DatedFixture) => {
+      if (f.date !== date || stage.results.some((r) => r.homeId === f.homeId && r.awayId === f.awayId && r.round === f.round)) return;
+      let firstLeg: { home: number; away: number } | undefined;
+      if (f.leg === 2) {
+        const leg1 = stage.results.find((r) => r.round === 1 && r.homeId === f.awayId && r.awayId === f.homeId);
+        if (leg1) firstLeg = { home: leg1.awayGoals, away: leg1.homeGoals };
+      }
+      const label =
+        stage.id === 'barrage' ? `${STAGE_LABEL.barrage}, ${f.leg ?? 1}. zápas` : stage.id.endsWith('group') ? `${STAGE_LABEL[stage.id]}, ${f.round}. kolo` : STAGE_LABEL[stage.id];
+      out.push({
+        date,
+        homeId: f.homeId,
+        awayId: f.awayId,
+        level: 1,
+        label,
+        rngKey: `${stage.id}:${f.round}:${f.homeId}`,
+        ...(f.knockout ? { knockout: firstLeg ? { firstLeg } : {} } : {}),
+        ...(f.neutral ? { neutral: true } : {}),
+        store: (s) => stage.results.push(s),
+        fixtureRound: f.round,
+        competitionId: null,
+        round: stage.id.endsWith('group') ? f.round : null,
+      });
+    });
+  }
+  const cup = state.cup;
+  const round = cup && !cup.winnerId ? cup.rounds[cup.current] : undefined;
+  if (cup && round && round.date === date) {
+    for (const tie of round.ties) {
+      if (tie.awayId === null || tie.result) continue;
+      const awayId = tie.awayId;
+      out.push({
+        date,
+        homeId: tie.homeId,
+        awayId,
+        level: Math.min(cupLevel(state, data, tie.homeId), cupLevel(state, data, awayId), 3) as Level,
+        label: `${data.pyramid.cup.name}, ${round.name}`,
+        rngKey: `cup:${cup.current}:${tie.homeId}`,
+        knockout: {},
+        ...(round.neutral ? { neutral: true } : {}),
+        store: (s) => (tie.result = s),
+        fixtureRound: cup.current + 1,
+        competitionId: null,
+        round: null,
+      });
+    }
+  }
+  return out;
+}
 
 export function nextMatchDate(state: GameState): string | null {
-  let next: string | null = null;
+  const dates: string[] = [];
   for (const c of state.competitions) {
     const d = c.roundDates[c.playedRounds];
-    if (d !== undefined && (next === null || d < next)) next = d;
+    if (d) dates.push(d);
   }
-  return next;
+  for (const s of state.stages)
+    for (const f of s.fixtures)
+      if (!s.results.some((r) => r.homeId === f.homeId && r.awayId === f.awayId && r.round === f.round)) dates.push(f.date);
+  const cupDate = nextCupDate(state);
+  if (cupDate) dates.push(cupDate);
+  return dates.sort()[0] ?? null;
 }
 
 export interface UpcomingMatch {
-  competitionId: CompetitionId;
-  round: number;
   date: string;
-  fixture: Fixture;
+  label: string;
+  homeId: string;
+  awayId: string;
+  competitionId: CompetitionId | null;
+  round: number | null;
 }
 
-export function nextUserMatch(state: GameState): UpcomingMatch | null {
+/** The manager's next match in any competition (null when none is scheduled yet). */
+export function nextUserMatch(state: GameState, data?: GameData): UpcomingMatch | null {
+  if (!state.userClubId || !data) return nextUserLeagueMatch(state);
+  const candidates: UpcomingMatch[] = [];
+  const dates = new Set<string>();
+  for (const c of state.competitions) for (const d of c.roundDates.slice(c.playedRounds)) dates.add(d);
+  for (const s of state.stages) for (const f of s.fixtures) dates.add(f.date);
+  const cupDate = nextCupDate(state);
+  if (cupDate) dates.add(cupDate);
+  for (const d of [...dates].sort()) {
+    for (const m of matchesOn(state, data, d))
+      if (m.homeId === state.userClubId || m.awayId === state.userClubId)
+        candidates.push({ date: m.date, label: m.label, homeId: m.homeId, awayId: m.awayId, competitionId: m.competitionId, round: m.round });
+    if (candidates.length > 0) break;
+  }
+  return candidates[0] ?? null;
+}
+
+/** Next league fixture of the manager's club (no data needed). */
+function nextUserLeagueMatch(state: GameState): UpcomingMatch | null {
   if (!state.userClubId) return null;
   const comp = state.competitions.find((c) => c.clubIds.includes(state.userClubId as string));
   if (!comp) return null;
   const round = comp.playedRounds + 1;
-  const fixture = comp.fixtures.find((f) => f.round === round && (f.homeId === state.userClubId || f.awayId === state.userClubId));
+  const f = comp.fixtures.find((x) => x.round === round && (x.homeId === state.userClubId || x.awayId === state.userClubId));
   const date = comp.roundDates[comp.playedRounds];
-  return fixture && date ? { competitionId: comp.id, round, date, fixture } : null;
+  return f && date ? { date, label: `${round}. kolo`, homeId: f.homeId, awayId: f.awayId, competitionId: comp.id, round } : null;
 }
 
 export function competitionOfClub(state: GameState, clubId: string): CompetitionProgress | undefined {
   return state.competitions.find((c) => c.clubIds.includes(clubId));
 }
 
+/** Regular-season table of a league. */
 export function tableFor(state: GameState, competitionId: CompetitionId, data: GameData): TableRow[] {
-  const progress = state.competitions.find((c) => c.id === competitionId);
-  const competition = data.competitions.find((c) => c.id === competitionId);
-  if (!progress || !competition) return [];
-  return computeTable(progress.clubIds, progress.results, competition, `${seasonRng(state).seed}/${competitionId}/lot`);
+  return regularTable(state, competitionId, data);
+}
+
+/** Final order of every league (the 1st league after its post-season). */
+export function finalStandings(state: GameState, data: GameData): Partial<Record<CompetitionId, string[]>> {
+  const out: Partial<Record<CompetitionId, string[]>> = {};
+  for (const c of state.competitions)
+    out[c.id] = c.id === data.pyramid.firstLeague.id ? firstLeagueOrder(state, data) : regularTable(state, c.id, data).map((r) => r.clubId);
+  return out;
+}
+
+// ---------------------------------------------------------------- time passing
+
+export function leagueCelLookup(state: GameState, data: GameData): (clubId: string) => number {
+  const rt = runtimeOf(state);
+  const cache = new Map<CompetitionId, number>();
+  return (clubId) => {
+    const comp = state.membership[clubId];
+    if (!comp) return 40;
+    let v = cache.get(comp);
+    if (v === undefined) {
+      const ids = membersOf(state.membership, comp);
+      v = ids.reduce((s, id) => s + selectionFor(id, squadOf(state, id), data, rt.selection).strength, 0) / Math.max(1, ids.length);
+      cache.set(comp, v);
+    }
+    return v;
+  };
+}
+
+function nameOf(p: Player): string {
+  return `${p.firstName} ${p.lastName}`;
+}
+
+/** Days pass between two dates (exclusive start, inclusive end) – recovery, healing, training injuries. */
+function passSegment(state: GameState, data: GameData, from: string, to: string, news: NewsItem[]): void {
+  const days = daysBetween(from, to);
+  if (days <= 0) return;
+  const { balance } = data;
+  const userId = state.userClubId;
+  const setting = state.user?.training ?? 'normal';
+  const nextUser = userId ? nextUserMatch(state, data)?.date : undefined;
+  // Training of the manager's team, day by day.
+  let recoveryDays = 0;
+  let survive = 1;
+  for (let i = 1; i <= days; i++) {
+    const day = addDays(from, i);
+    const intensity: TrainingIntensity = resolveTraining(setting, nextUser ? daysBetween(day, nextUser) : null, balance);
+    recoveryDays += balance.training[intensity].recovery;
+    survive *= 1 - balance.training[intensity].injuryPerPlayerDay;
+  }
+  const rng = seasonRngOf(state).fork(`training:${to}`);
+  for (const p of state.players) {
+    const s = p.state;
+    const own = userId !== null && p.clubId === userId && !p.academy;
+    s.condition = Math.min(100, s.condition + balance.condition.recoveryPerDay * (own ? recoveryDays : days));
+    if (s.injury) {
+      s.injury.daysLeft -= days;
+      if (s.injury.daysLeft <= 0) {
+        delete s.injury;
+        if (p.clubId === userId && !p.academy) news.push({ date: to, kind: 'recovered', playerId: p.id, text: `${nameOf(p)} je po zranění zpět.` });
+      }
+    } else if (own && survive < 1 && rng.chance(1 - survive)) {
+      const injury = { type: 'zranění z tréninku', daysLeft: rng.int(balance.training.injuryDays[0], balance.training.injuryDays[1]) };
+      s.injury = injury;
+      news.push({ date: to, kind: 'injury', playerId: p.id, text: `${nameOf(p)} se zranil v tréninku, mimo hru zhruba ${injury.daysLeft} dní.` });
+    }
+  }
+}
+
+/** First days of months in (from, to]. */
+function monthStarts(from: string, to: string): string[] {
+  const out: string[] = [];
+  const [y, m] = from.split('-').map(Number) as [number, number];
+  let year = y;
+  let month = m + 1;
+  for (;;) {
+    if (month > 12) {
+      month = 1;
+      year++;
+    }
+    const d = `${year}-${String(month).padStart(2, '0')}-01`;
+    if (d > to) break;
+    out.push(d);
+    month++;
+  }
+  return out;
+}
+
+/** Monthly development tick (and the January academy intake + squad management). */
+function monthTick(state: GameState, data: GameData, date: string, news: NewsItem[]): void {
+  const rng = seasonRngOf(state).fork(`month:${date}`);
+  news.push(...developmentTick(state, data, { date, leagueCelOf: leagueCelLookup(state, data), rng: rng.fork('dev') }));
+  // Attributes changed: cached line-ups must be chosen again (a loaded game has no cache either).
+  invalidateRuntime(state);
+  const month = Number(date.slice(5, 7));
+  // July intake happens at the season transition.
+  if (month !== 7 && data.balance.academy.intakeMonths.includes(month)) {
+    news.push(...academyIntake(state, data, date, rng.fork('intake')));
+    invalidateRuntime(state);
+    news.push(...manageSquads(state, data, { date, leagueCelOf: leagueCelLookup(state, data), rng: rng.fork('squads') }));
+    invalidateRuntime(state);
+  }
+}
+
+/** Moves the clock to `to`, with recovery, healing and monthly development on the way. */
+export function passTime(state: GameState, data: GameData, to: string, news: NewsItem[]): void {
+  let cursor = state.date;
+  for (const m of monthStarts(cursor, to)) {
+    passSegment(state, data, cursor, m, news);
+    monthTick(state, data, m, news);
+    cursor = m;
+  }
+  passSegment(state, data, cursor, to, news);
+  state.date = to;
 }
 
 // ---------------------------------------------------------------- playing
 
 export interface DayResult {
   date: string;
-  played: { competitionId: CompetitionId; round: number }[];
+  played: { label: string; homeId: string; awayId: string }[];
   userReport?: MatchReport;
   news: NewsItem[];
 }
 
 export interface AdvanceOptions {
   /** Called with every report (e.g. for calibration or tests); reports are otherwise discarded. */
-  onReport?: (report: MatchReport, competitionId: CompetitionId, round: number) => void;
+  onReport?: (report: MatchReport, competitionId: CompetitionId | null, round: number | null, date: string) => void;
 }
 
 function pushNews(state: GameState, items: NewsItem[]): void {
@@ -158,29 +453,12 @@ function pushNews(state: GameState, items: NewsItem[]): void {
   if (state.news.length > MAX_NEWS) state.news.splice(0, state.news.length - MAX_NEWS);
 }
 
-function userMatchNews(state: GameState, report: MatchReport, before: Map<string, number>, date: string): NewsItem[] {
-  const rt = runtimeOf(state);
-  const news: NewsItem[] = [];
-  for (const line of report.players) {
-    if (line.clubId !== state.userClubId) continue;
-    const p = rt.byId.get(line.playerId);
-    if (!p) continue;
-    const name = `${p.firstName} ${p.lastName}`;
-    if (line.injury)
-      news.push({ date, kind: 'injury', playerId: p.id, text: `${name} se zranil (${line.injury.type}), mimo hru zhruba ${line.injury.daysLeft} dní.` });
-    const added = p.state.suspensionMatches - (before.get(p.id) ?? 0);
-    if (added > 0) {
-      const why = line.red === 'straight' ? 'červená karta' : line.red === 'secondYellow' ? 'druhá žlutá karta' : `${p.state.yellowCards}. žlutá karta`;
-      news.push({ date, kind: 'suspension', playerId: p.id, text: `${name} má stopku na ${added} ${added === 1 ? 'zápas' : added < 5 ? 'zápasy' : 'zápasů'} (${why}).` });
-    }
-  }
-  return news;
-}
-
-function summarize(report: MatchReport, fixture: Fixture, date: string): MatchSummary {
+function summarize(report: MatchReport, homeId: string, awayId: string, round: number, date: string): MatchSummary {
   const rated = report.players.filter((l) => l.minutesPlayed > 0);
   return {
-    ...fixture,
+    round,
+    homeId,
+    awayId,
     date,
     homeGoals: report.homeGoals,
     awayGoals: report.awayGoals,
@@ -191,7 +469,72 @@ function summarize(report: MatchReport, fixture: Fixture, date: string): MatchSu
     scorers: report.events
       .filter((e) => (e.type === 'goal' || e.type === 'penaltyGoal') && e.playerId)
       .map((e) => [e.playerId as string, e.minute + (e.added ?? 0) / 100, e.side]),
+    ...(report.extraTime ? { extraTime: true } : {}),
+    ...(report.penalties ? { penalties: report.penalties } : {}),
   };
+}
+
+function userMatchNews(state: GameState, report: MatchReport, before: Map<string, number>, date: string): NewsItem[] {
+  const rt = runtimeOf(state);
+  const news: NewsItem[] = [];
+  for (const line of report.players) {
+    if (line.clubId !== state.userClubId) continue;
+    const p = rt.byId.get(line.playerId);
+    if (!p) continue;
+    if (line.injury) news.push({ date, kind: 'injury', playerId: p.id, text: `${nameOf(p)} se zranil (${line.injury.type}), mimo hru zhruba ${line.injury.daysLeft} dní.` });
+    const added = p.state.suspensionMatches - (before.get(p.id) ?? 0);
+    if (added > 0) {
+      const why = line.red === 'straight' ? 'červená karta' : line.red === 'secondYellow' ? 'druhá žlutá karta' : `${p.state.yellowCards}. žlutá karta`;
+      news.push({ date, kind: 'suspension', playerId: p.id, text: `${nameOf(p)} má stopku na ${added} ${added === 1 ? 'zápas' : added < 5 ? 'zápasy' : 'zápasů'} (${why}).` });
+    }
+  }
+  return news;
+}
+
+function playPlanned(state: GameState, data: GameData, m: PlannedMatch, news: NewsItem[], opts: AdvanceOptions): MatchReport {
+  const rt = runtimeOf(state);
+  const { balance } = data;
+  const rng = seasonRngOf(state);
+  const homeSquad = rt.byClub.get(m.homeId) ?? [];
+  const awaySquad = rt.byClub.get(m.awayId) ?? [];
+  const homeSel = selectionFor(m.homeId, homeSquad, data, rt.selection);
+  const awaySel = selectionFor(m.awayId, awaySquad, data, rt.selection);
+  const user = state.user;
+  const isUserHome = m.homeId === state.userClubId;
+  const isUserAway = m.awayId === state.userClubId;
+  const userStr = user && (isUserHome || isUserAway) ? userStrength(user, rt.byId, data) : 0;
+  const sheetFor = (clubId: string, squad: Player[], own: typeof homeSel, oppStrength: number, isUser: boolean): TeamSheet => {
+    if (isUser && user) {
+      const prepared = prepareUserSheet(clubId, user, squad, data, oppStrength, m.date);
+      news.push(...prepared.news);
+      return prepared.sheet;
+    }
+    return aiSheet(clubId, own, oppStrength, data);
+  };
+  const homeSheet = sheetFor(m.homeId, homeSquad, homeSel, isUserAway ? userStr : awaySel.strength, isUserHome);
+  const awaySheet = sheetFor(m.awayId, awaySquad, awaySel, isUserHome ? userStr : homeSel.strength, isUserAway);
+
+  const suspended = [...homeSquad, ...awaySquad].filter((p) => p.state.suspensionMatches > 0);
+  const report = playMatch(homeSheet, awaySheet, {
+    level: m.level,
+    balance,
+    formations: data.tactics.formations,
+    rng: rng.fork(m.rngKey),
+    date: m.date,
+    ...(m.knockout ? { knockout: m.knockout } : {}),
+    ...(m.neutral ? { homeAdvantage: false } : {}),
+  });
+  for (const p of suspended) p.state.suspensionMatches--;
+  const before = new Map([...homeSquad, ...awaySquad].map((p) => [p.id, p.state.suspensionMatches]));
+  applyMatchToPlayers(report, rt.byId, balance, rng.fork(`discipline:${m.rngKey}`));
+  recordStats(state.playerStats, report);
+  m.store(summarize(report, m.homeId, m.awayId, m.fixtureRound, m.date));
+  opts.onReport?.(report, m.competitionId, m.round, m.date);
+  if ((isUserHome || isUserAway) && user) {
+    user.matches.push({ date: m.date, label: m.label, report });
+    news.push(...userMatchNews(state, report, before, m.date));
+  }
+  return report;
 }
 
 /** Plays the next match day. Returns null when the season is over. */
@@ -201,81 +544,36 @@ export function advanceDay(state: GameState, data: GameData, opts: AdvanceOption
     state.finished = true;
     return null;
   }
-  const rt = runtimeOf(state);
-  const { balance } = data;
-  const rng = seasonRng(state);
-  const dayNews: NewsItem[] = [];
+  const news: NewsItem[] = [];
+  passTime(state, data, date, news);
 
-  // Time passes until the match day.
-  const healed = passDays(rt.players, daysBetween(state.date, date), balance);
-  for (const p of healed)
-    if (p.clubId === state.userClubId) dayNews.push({ date, kind: 'recovered', playerId: p.id, text: `${p.firstName} ${p.lastName} je po zranění zpět.` });
-  state.date = date;
-
+  const planned = matchesOn(state, data, date);
+  if (planned.length === 0 && !state.competitions.some((c) => c.roundDates[c.playedRounds] === date))
+    throw new Error(`Hrací den ${date} nemá žádný zápas – chyba v rozpisu`);
   const result: DayResult = { date, played: [], news: [] };
-  for (const progress of state.competitions) {
-    if (progress.roundDates[progress.playedRounds] !== date) continue;
-    const competition = data.competitions.find((c) => c.id === progress.id);
-    if (!competition) throw new Error(`Neznámá soutěž ${progress.id}`);
-    const round = progress.playedRounds + 1;
-
-    for (const fixture of progress.fixtures.filter((f) => f.round === round)) {
-      const homeSquad = rt.byClub.get(fixture.homeId) ?? [];
-      const awaySquad = rt.byClub.get(fixture.awayId) ?? [];
-      const homeSel = selectionFor(fixture.homeId, homeSquad, data, rt.selection);
-      const awaySel = selectionFor(fixture.awayId, awaySquad, data, rt.selection);
-      const isUserHome = fixture.homeId === state.userClubId;
-      const isUserAway = fixture.awayId === state.userClubId;
-      const user = state.user;
-      const userStr = user && (isUserHome || isUserAway) ? userStrength(user, rt.byId, data) : 0;
-
-      const sheetFor = (clubId: string, squad: Player[], own: typeof homeSel, oppStrength: number, isUser: boolean) => {
-        if (isUser && user) {
-          const prepared = prepareUserSheet(clubId, user, squad, data, oppStrength, date);
-          dayNews.push(...prepared.news);
-          return prepared.sheet;
-        }
-        return aiSheet(clubId, own, oppStrength, data);
-      };
-      const homeSheet = sheetFor(fixture.homeId, homeSquad, homeSel, isUserAway ? userStr : awaySel.strength, isUserHome);
-      const awaySheet = sheetFor(fixture.awayId, awaySquad, awaySel, isUserHome ? userStr : homeSel.strength, isUserAway);
-
-      const suspended = [...homeSquad, ...awaySquad].filter((p) => p.state.suspensionMatches > 0);
-      const suspensionsBefore = new Map([...homeSquad, ...awaySquad].map((p) => [p.id, p.state.suspensionMatches]));
-      const report = playMatch(homeSheet, awaySheet, {
-        level: competition.level,
-        balance,
-        formations: data.tactics.formations,
-        rng: rng.fork(`${progress.id}:${round}:${fixture.homeId}`),
-      });
-      for (const p of suspended) {
-        p.state.suspensionMatches--;
-        suspensionsBefore.set(p.id, p.state.suspensionMatches);
-      }
-      applyMatchToPlayers(report, rt.byId, balance, rng.fork(`discipline:${progress.id}:${round}:${fixture.homeId}`));
-      recordStats(state.playerStats, report);
-      progress.results.push(summarize(report, fixture, date));
-      opts.onReport?.(report, progress.id, round);
-
-      if (isUserHome || isUserAway) {
-        state.user?.reports.push(report);
-        result.userReport = report;
-        dayNews.push(...userMatchNews(state, report, suspensionsBefore, date));
-      }
-    }
-    progress.playedRounds = round;
-    result.played.push({ competitionId: progress.id, round });
+  for (const m of planned) {
+    const report = playPlanned(state, data, m, news, opts);
+    result.played.push({ label: m.label, homeId: m.homeId, awayId: m.awayId });
+    if (report && (m.homeId === state.userClubId || m.awayId === state.userClubId)) result.userReport = report;
   }
+  for (const progress of state.competitions) if (progress.roundDates[progress.playedRounds] === date) progress.playedRounds++;
 
-  result.news = dayNews;
-  pushNews(state, dayNews);
-  if (nextMatchDate(state) === null) state.finished = true;
+  progressPostseason(state, data);
+  progressCup(state, data, seasonRngOf(state).fork('cup'));
+
+  result.news = news;
+  pushNews(state, news);
+  state.finished = nextMatchDate(state) === null && seasonComplete(state);
   return result;
+}
+
+export function seasonComplete(state: GameState): boolean {
+  return state.competitions.every((c) => c.playedRounds >= c.roundDates.length) && postseasonDone(state) && cupFinished(state);
 }
 
 /**
  * Plays match days until the manager's team has played (or the season ends). Days on which only
- * other competitions play are played on the way. Without a manager it plays one day.
+ * other teams play are played on the way. Without a manager it plays one day.
  */
 export function advanceToNextUserMatch(state: GameState, data: GameData, opts: AdvanceOptions = {}): DayResult[] {
   const days: DayResult[] = [];
@@ -288,7 +586,7 @@ export function advanceToNextUserMatch(state: GameState, data: GameData, opts: A
   return days;
 }
 
-/** Plays the rest of the season. */
+/** Plays the rest of the season (league, post-season, barrage, cup). */
 export function playToSeasonEnd(state: GameState, data: GameData, opts: AdvanceOptions = {}): void {
   while (advanceDay(state, data, opts)) {
     /* keep playing */
@@ -307,3 +605,4 @@ export function userLineupStrength(state: GameState, data: GameData): number {
     data.balance,
   );
 }
+

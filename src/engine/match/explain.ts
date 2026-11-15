@@ -39,6 +39,13 @@ export function explainMatch(report: MatchReport): string[] {
     sentences.push(`Remíza odpovídá průběhu, šance byly vyrovnané (${xgText}).`);
   }
 
+  if (report.penalties) {
+    const [h, a] = report.penalties;
+    sentences.unshift(`Po ${report.extraTime ? 'prodloužení' : 'zápase'} rozhodly penalty ${h}:${a}, postupují ${h > a ? 'domácí' : 'hosté'}.`);
+  } else if (report.extraTime) {
+    sentences.unshift('Zápas se rozhodl až v prodloužení.');
+  }
+
   // 2) Red card.
   const red = report.events.find((e) => e.type === 'red' || e.type === 'secondYellow');
   if (red) {
@@ -69,5 +76,5 @@ export function explainMatch(report: MatchReport): string[] {
       );
   }
   if (sentences.length < 2) sentences.push(`Střely ${home.shots} : ${away.shots}, na branku ${home.shotsOnTarget} : ${away.shotsOnTarget}.`);
-  return sentences.slice(0, 3);
+  return sentences.slice(0, report.penalties || report.extraTime ? 4 : 3);
 }

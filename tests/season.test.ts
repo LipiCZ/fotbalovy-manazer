@@ -4,6 +4,7 @@ import type { MatchReport, PlayerMatchLine } from '../src/engine/match/types.ts'
 import { Rng } from '../src/engine/rng.ts';
 import { daysBetween } from '../src/engine/game/calendar.ts';
 import { applyMatchToPlayers, expectedGoals, passDays, playSeason } from '../src/engine/season.ts';
+import { createGameState, playToSeasonEnd } from '../src/engine/game/advance.ts';
 import type { Player } from '../src/engine/types.ts';
 import { createWorld } from '../src/engine/world.ts';
 
@@ -41,22 +42,22 @@ describe('simulace sezóny', () => {
   });
 });
 
-/** Matches of a club in round order, with the player lines. */
-function clubTimeline(clubId: string): { round: number; date: string; lines: PlayerMatchLine[]; report: MatchReport }[] {
-  const out: { round: number; date: string; lines: PlayerMatchLine[]; report: MatchReport }[] = [];
-  for (const cs of season.competitions)
-    cs.reports!.forEach((r, i) => {
-      if (r.homeId === clubId || r.awayId === clubId)
-        out.push({ round: cs.results[i]!.round, date: cs.summaries[i]!.date, lines: r.players.filter((l) => l.clubId === clubId), report: r });
-    });
-  return out.sort((a, b) => a.round - b.round);
+/** All matches of a club (league, post-season, cup) in date order, with the player lines. */
+const allMatches: { date: string; report: MatchReport }[] = [];
+{
+  const st = createGameState(createWorld(data, 'timeline'), { seed: 'timeline', userClubId: null });
+  playToSeasonEnd(st, data, { onReport: (report, _c, _r, date) => allMatches.push({ date, report }) });
+}
+function clubTimeline(clubId: string): { date: string; lines: PlayerMatchLine[] }[] {
+  return allMatches
+    .filter((m) => m.report.homeId === clubId || m.report.awayId === clubId)
+    .map((m) => ({ date: m.date, lines: m.report.players.filter((l) => l.clubId === clubId) }));
 }
 
-describe('zranění a tresty mezi koly', () => {
+describe('zranění a tresty mezi zápasy (liga, nadstavba, pohár)', () => {
   const clubs = data.clubs.map((c) => c.id);
   const timelines = new Map(clubs.map((id) => [id, clubTimeline(id)]));
   const appears = (lines: PlayerMatchLine[], id: string) => lines.some((l) => l.playerId === id);
-  // In the sheet = in the starting XI or on the bench; lines exist only for players who played.
 
   it('zraněný hráč nehraje, dokud se nevyléčí (podle dnů v kalendáři)', () => {
     let checked = 0;
@@ -75,25 +76,25 @@ describe('zranění a tresty mezi koly', () => {
     expect(checked).toBeGreaterThan(50);
   });
 
-  it('po 4. žluté kartě a po vyloučení hráč vynechá další zápas', () => {
+  it('po 4. žluté kartě a po vyloučení hráč vynechá další zápas svého klubu', () => {
+    // Yellow cards count per player across clubs (a player may move between the A- and B-team).
+    const yellows = new Map<string, number>();
     let checked = 0;
-    for (const [, tl] of timelines) {
-      const yellows = new Map<string, number>();
-      tl.forEach((m, idx) => {
-        const next = tl[idx + 1];
-        for (const l of m.lines) {
-          let banned = l.red !== 'none';
-          if (l.red !== 'secondYellow' && l.yellow > 0) {
-            const total = (yellows.get(l.playerId) ?? 0) + l.yellow;
-            yellows.set(l.playerId, total);
-            if (total % balance.discipline.yellowsPerBan === 0) banned = true;
-          }
-          if (banned && next) {
-            expect(appears(next.lines, l.playerId), `${l.playerId} má stopku po ${m.round}. kole`).toBe(false);
-            checked++;
-          }
+    for (const m of allMatches) {
+      for (const l of m.report.players) {
+        let banned = l.red !== 'none';
+        if (l.red !== 'secondYellow' && l.yellow > 0) {
+          const total = (yellows.get(l.playerId) ?? 0) + l.yellow;
+          yellows.set(l.playerId, total);
+          if (total % balance.discipline.yellowsPerBan === 0) banned = true;
         }
-      });
+        if (!banned) continue;
+        const tl = timelines.get(l.clubId)!;
+        const next = tl[tl.findIndex((x) => x.date === m.date) + 1];
+        if (!next) continue;
+        expect(appears(next.lines, l.playerId), `${l.playerId} má stopku po ${m.date}`).toBe(false);
+        checked++;
+      }
     }
     expect(checked).toBeGreaterThan(50);
   });

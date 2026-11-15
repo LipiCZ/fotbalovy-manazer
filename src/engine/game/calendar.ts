@@ -28,23 +28,42 @@ export function seasonDate(mmdd: string, seasonYear: number): string {
   return `${month >= 7 ? seasonYear : seasonYear + 1}-${mmdd}`;
 }
 
-/** Dates of `rounds` rounds of a competition. */
-export function roundDates(competition: Competition, seasonYear: number, rounds: number): string[] {
+/**
+ * Dates of `rounds` rounds of a competition: Saturdays outside the winter break; when there are
+ * not enough of them (a bigger group), midweek rounds (Wednesdays) are spread evenly in between.
+ */
+export function roundDates(competition: Competition, seasonYear: number, rounds: number, lastDate = `${seasonYear + 1}-06-30`): string[] {
   const cal = competition.calendar;
-  let ms = parseDate(seasonDate(cal.firstRound, seasonYear));
-  while (new Date(ms).getUTCDay() !== 6) ms += DAY;
   const breakFrom = parseDate(seasonDate(cal.winterBreak[0], seasonYear));
   const breakTo = parseDate(seasonDate(cal.winterBreak[1], seasonYear));
-  const seasonEnd = parseDate(`${seasonYear + 1}-06-30`);
-  const dates: string[] = [];
-  while (dates.length < rounds) {
-    if (ms > seasonEnd) throw new Error(`${competition.name}: ${rounds} kol se do sezóny nevejde`);
-    if (ms < breakFrom || ms > breakTo) dates.push(formatIso(ms));
-    ms += 7 * DAY;
+  const end = parseDate(lastDate);
+  const start = parseDate(weekdayOnOrAfter(seasonDate(cal.firstRound, seasonYear), 6));
+  const saturdays: number[] = [];
+  const wednesdays: number[] = [];
+  for (let ms = start; ms <= end; ms += 7 * DAY) {
+    if (ms >= breakFrom && ms <= breakTo) continue;
+    saturdays.push(ms);
+    const wed = ms + 4 * DAY;
+    if (wed <= end && !(wed >= breakFrom && wed <= breakTo)) wednesdays.push(wed);
   }
-  return dates;
+  // Only as many Saturdays as needed; the season should end as early as possible.
+  if (saturdays.length >= rounds) return saturdays.slice(0, rounds).map(formatIso);
+  const extra = rounds - saturdays.length;
+  if (extra > wednesdays.length) throw new Error(`${competition.name}: ${rounds} kol se do sezóny nevejde`);
+  const picked = Array.from({ length: extra }, (_, i) => wednesdays[Math.floor(((i + 0.5) * wednesdays.length) / extra)] as number);
+  return [...saturdays, ...picked].sort((a, b) => a - b).map(formatIso);
 }
 
 export function seasonStart(seasonYear: number): string {
   return `${seasonYear}-07-01`;
 }
+
+/** First day with the given weekday (0 = Sunday … 6 = Saturday) on or after a date. */
+export function weekdayOnOrAfter(iso: string, weekday: number): string {
+  let ms = parseDate(iso);
+  while (new Date(ms).getUTCDay() !== weekday) ms += DAY;
+  return formatIso(ms);
+}
+
+export const SATURDAY = 6;
+export const WEDNESDAY = 3;

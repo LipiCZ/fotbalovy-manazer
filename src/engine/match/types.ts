@@ -79,6 +79,9 @@ export interface MatchReport {
   manOfTheMatchId: string | null;
   /** 2–3 sentences from the assistant (Czech). */
   explanation: string[];
-  /** Length of the match in minutes including added time. */
+  /** Length of the match in minutes including added time (and extra time). */
   length: number;
+  extraTime?: boolean;
+  /** Penalty shoot-out [home, away]. */
+  penalties?: [number, number];
 }

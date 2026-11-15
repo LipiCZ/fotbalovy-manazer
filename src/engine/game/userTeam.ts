@@ -37,7 +37,7 @@ export function assistantProposal(squad: readonly Player[], data: GameData, oppo
 /** Initial state of the manager's team: the assistant's proposal. */
 export function initialUserTeam(squad: readonly Player[], data: GameData): UserTeamState {
   const { lineup, tactics } = assistantProposal(squad, data, 0);
-  return { tactics: { ...tactics, mentality: 'balanced' }, lineup, autoLineup: false, reports: [] };
+  return { tactics: { ...tactics, mentality: 'balanced' }, lineup, autoLineup: false, training: 'assistant', matches: [] };
 }
 
 function toChoice(lineup: UserLineup, byId: Map<string, Player>, formation: FormationId): LineupChoice {
@@ -193,4 +193,50 @@ export function prepareUserSheet(
   user.lineup = { slots: user.lineup.slots, playerIds: lineup.map((p) => p?.id ?? null), benchIds: bench.map((p) => p.id) };
   user.tactics = tactics;
   return { sheet: { clubId, slots: [...user.lineup.slots], lineup, bench, tactics: { ...tactics } }, news };
+}
+
+// ---------------------------------------------------------------- A-team / B-team / academy (design, section 3)
+
+export type SquadTarget = 'A' | 'B' | 'academy';
+
+/** B-team of the club that currently plays in a simulated competition (or undefined). */
+export function activeReserveTeam(data: GameData, membership: Record<string, string>, clubId: string): string | undefined {
+  return data.clubs.find((c) => c.parentClubId === clubId && membership[c.id])?.id;
+}
+
+/**
+ * Moves one of the manager's players between the A-team, the B-team and the academy.
+ * Returns an error message (Czech) when the move is not allowed.
+ */
+export function moveUserPlayer(
+  player: Player,
+  target: SquadTarget,
+  clubId: string,
+  user: UserTeamState,
+  data: GameData,
+  membership: Record<string, string>,
+  ageNow: number,
+): string | null {
+  const bId = activeReserveTeam(data, membership, clubId);
+  if (target === 'B' && !bId) return 'Klub nemá B-tým v soutěži.';
+  if (target === 'academy' && ageNow >= data.balance.academy.releaseAtAge)
+    return `Do akademie může jen hráč mladší ${data.balance.academy.releaseAtAge} let.`;
+  if (target === 'A') {
+    player.clubId = clubId;
+    player.academy = false;
+  } else if (target === 'B') {
+    player.clubId = bId as string;
+    player.academy = false;
+  } else {
+    player.clubId = clubId;
+    player.academy = true;
+  }
+  if (target !== 'A') {
+    user.lineup = {
+      ...user.lineup,
+      playerIds: user.lineup.playerIds.map((id) => (id === player.id ? null : id)),
+      benchIds: user.lineup.benchIds.filter((id) => id !== player.id),
+    };
+  }
+  return null;
 }

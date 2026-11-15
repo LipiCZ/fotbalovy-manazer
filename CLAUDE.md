@@ -9,18 +9,20 @@ Kompletní design: `docs/design.md` (zdroj pravdy). Plán fází je v sekci 16.
 ## Technologie
 
 TypeScript (strict), React, Vite, Zustand (stav aplikace), Vitest + Testing Library (testy), tsx (TS skripty v Node), Playwright (e2e).
-Ukládání: IndexedDB (vlastní tenká vrstva) + export/import JSON. Později: Recharts (grafy, fáze 4).
+Ukládání: IndexedDB (vlastní tenká vrstva) + export/import JSON. Grafy: Recharts.
 
 ## Architektura
 
 ```
-data/            JSON data: soutěže, kluby, kraje, jména, balance.json (laditelné konstanty)
+data/            JSON data: soutěže, kluby, kraje, jména, taktika, pyramid.json (nadstavba, baráž, postupy, pohár), balance.json (laditelné konstanty)
 docs/design.md   designový dokument
 src/engine/      čistá herní logika – žádný React, DOM ani prohlížečové API; jde spouštět v Node
   players/       generátor hráčů, výpočet TS/FS/CEL z atributů
   match/         zápasový engine (krokovač), známky, vysvětlení asistenta
   lineup.ts      vhodnost pozice, optimální sestava (maďarská metoda), taktika AI
-  game/          herní stav (GameState), smyčka po hracích dnech, kalendář, sestava hráče, statistiky, formát uložení
+  game/          herní stav (GameState) a smyčka po hracích dnech (advance.ts), kalendář, sestava hráče, statistiky,
+                 vývoj hráčů a akademie (development.ts), nadstavba a baráž (postseason.ts), MOL Cup (cup.ts),
+                 pravidla pyramidy (pyramid.ts), přechod sezóny (transition.ts), formát uložení
   season.ts      simulace celé sezóny bez manažera (nad stejnou smyčkou jako hra)
 src/state/       Zustand store (navigace, akce), IndexedDB úložiště
 src/ui/          obrazovky (screens/) a komponenty (React); styles.css, akcentová barva klubu v theme.ts
@@ -49,7 +51,10 @@ Směr závislostí: `ui → state → engine → data`. Engine nikdy neimportuje
 - `GameState` je čistě serializovatelný (žádné `Map`) a ukládá se celý. Engine ho mění na místě, store pak zvýší `revision`.
 - Náhoda v sezóně se odvozuje ze seedu pro každý zápas zvlášť (`fork`), takže načtená hra pokračuje přesně stejně jako neuložená.
 - Změna formátu `GameState` = zvýšit `SAVE_VERSION` (`game/state.ts`) a vyřešit načítání starších uložení.
-- Věk hráče se počítá z `birthDate` k 1. 7. dané sezóny.
+- Věk hráče se počítá z `birthDate` k 1. 7. dané sezóny (pro vývoj přesně k datu, `exactAge`).
+- Příslušnost klubů k soutěžím je v `GameState.membership` (mění se postupy a sestupy); `clubs.json → competitionId` je jen start.
+- Akademie: hráči s `academy: true` (nehrají seniorské zápasy). Atributy jsou po vývoji desetinná čísla (UI zaokrouhluje).
+- Mezipaměť výběru sestav (`runtimeOf(state).selection`) se musí zneplatnit po každé změně atributů nebo kádrů (`invalidateRuntime`), jinak se rozejde uložená a neuložená hra.
 - Kluby mají `id` jako slug (`slavia-praha`, `slavia-praha-b`). B/C týmy mají `parentClubId`.
 - Pozice: kódy `GK CB LB RB DM CM AM LM RM LW RW ST`, v UI česky (BR SO LO PO DZ SZ OZ LZ PZ LK PK ÚT).
 
@@ -61,6 +66,10 @@ Směr závislostí: `ui → state → engine → data`. Engine nikdy neimportuje
 - Kalibrační cíle mimo design (střely, fauly, karty, rohy, zranění, výhry domácích v 1. lize) jsou odhad – statistické weby nebyly z prostředí dostupné. Délky trestů za červené karty jsou odhad.
 - Všechny týmy mají kádry generované kolem 4-2-3-1, takže AI ho volí nejčastěji. Pestřejší kádry přijdou s přestupy.
 - Kalendář kol (`competitions.json → calendar`: soboty, zimní pauza) je odhad, neověřeno proti FAČR.
+- Nadstavba jednokolově (zadání uživatele); play-off 7.–10., baráž na dva zápasy, počty postupujících a rozdělení do skupin 3. ligy podle krajů jsou návrh (`pyramid.json`).
+- Pyramida je od 3. ligy dolů uzavřená (zadání uživatele): z 3. ligy se nesestupuje, B-tým, který by musel pod 3. ligu, vypadne ze soutěží.
+- Dočasně do fáze 6 (přestupy): klub hluboko pod svou cílovou silou podepisuje „volné hráče“, B-týmy AI drží hráče do 22 let. Bez přestupů 2. liga za 10+ sezón pomalu sílí (`calibrate:world` upozorní).
+- Nábor do akademie: POT 70+ má ~6–7 % dorostenců (design: „zhruba každý desátý“) – víc talentu by bez přestupů nafouklo nižší soutěže.
 
 ## Příkazy
 
@@ -71,12 +80,13 @@ npm run typecheck    # kontrola typů
 npm run simulate -- --seed 42   # odsimuluje sezónu všech lig a vypíše tabulky
 npm run match -- --home slavia-praha --away sparta-praha --seed 1   # jeden zápas s událostmi a známkami
 npm run calibrate -- --seasons 1000   # kalibrace proti cílům; cíle z designu musí projít
-npm run e2e          # Playwright: nová hra → zápasy → uložení → reload → načtení → konec sezóny (screenshoty v out/screenshots)
+npm run calibrate:world   # stabilita světa: 8 světů × 10 sezón (prvních 5 přísně, dál jen upozornění)
+npm run e2e          # Playwright: nová hra → zápasy → uložení → reload → načtení → 5 sezón (screenshoty v out/screenshots)
 ```
 
 Lokálně před prvním `npm run e2e`: `npx playwright install chromium`.
 
-Po změně čísel v `balance.json → match` vždy pusť `npm run calibrate` (stačí 100 sezón, na konci fáze 1 000).
+Po změně čísel v `balance.json → match` vždy pusť `npm run calibrate` (stačí 100 sezón, na konci fáze 1 000). Po změně vývoje, akademie nebo kádrů pusť `npm run calibrate:world`.
 
 ## Stav fází
 
@@ -86,4 +96,5 @@ Po změně čísel v `balance.json → match` vždy pusť `npm run calibrate` (s
 | 1 | kluby v JSON, generátor hráčů, rozpis, tabulky, simulace sezóny | hotovo |
 | 2 | atributy, taktika, simulace zápasu, známky, zranění a tresty, kalibrace | hotovo |
 | 3 | UI (Domů, Soupiska, Profil, Taktika, Zápas, Soutěže, Konec sezóny), kalendář, ukládání – MVP | hotovo |
-| 4–8 | viz `docs/design.md`, sekce 16 | – |
+| 4 | vývoj hráčů, akademie, B-týmy, nadstavba, baráž, MOL Cup, přechod sezóny | hotovo |
+| 5–8 | viz `docs/design.md`, sekce 16 | – |

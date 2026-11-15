@@ -1,3 +1,4 @@
+import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { averageRating, formOf } from '../../engine/game/stats.ts';
 import { ageOn, fs, overall, seasonStartDate, ts } from '../../engine/players/rating.ts';
 import { ATTRIBUTE_LABEL_CS, GK_TECH, OUTFIELD_TECH, PHYSICAL, POSITION_LABEL_CS, type AttributeId } from '../../engine/types.ts';
@@ -15,11 +16,22 @@ function AttributeList({ title, ids, values, weights }: { title: string; ids: re
           <div className="bar">
             <div style={{ width: `${values[a]}%` }} />
           </div>
-          <span className="num">{values[a]}</span>
+          <span className="num">{Math.round(values[a])}</span>
         </div>
       ))}
     </div>
   );
+}
+
+/** Monthly CEL history with month labels counted back from the current date. */
+function celSeries(history: number[], date: string): { label: string; cel: number }[] {
+  const [y, m] = date.split('-').map(Number) as [number, number];
+  return history.map((cel, i) => {
+    const back = history.length - 1 - i;
+    const month = ((m - 1 - back) % 12 + 12) % 12 + 1;
+    const year = y + Math.floor((m - 1 - back) / 12);
+    return { label: `${month}/${String(year).slice(2)}`, cel: Math.round(cel * 10) / 10 };
+  });
 }
 
 export function PlayerScreen({ playerId }: { playerId: string }) {
@@ -88,7 +100,65 @@ export function PlayerScreen({ playerId }: { playerId: string }) {
           <div className="row">
             {s.recentRatings.length === 0 ? <span className="muted">zatím žádné</span> : s.recentRatings.slice(-5).map((r, i) => <RatingBadge key={i} value={r} />)}
           </div>
-          <p className="help">Vývoj CEL v čase a smlouva přibudou v dalších fázích.</p>
+        </div>
+      </section>
+      <section className="card grid cols-2">
+        <div>
+          <h3>Vývoj CEL</h3>
+          {(p.celHistory?.length ?? 0) < 2 ? (
+            <p className="muted">Vývoj se zaznamenává každý měsíc, graf se ukáže po prvním měsíci.</p>
+          ) : (
+            <div style={{ height: 220 }} aria-label="graf vývoje CEL">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={celSeries(p.celHistory ?? [], game.date)} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
+                  <CartesianGrid stroke="var(--line)" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} interval="preserveStartEnd" minTickGap={24} />
+                  <YAxis domain={['dataMin - 3', 'dataMax + 3']} tick={{ fontSize: 11, fill: 'var(--muted)' }} allowDecimals={false} />
+                  <Tooltip formatter={(v) => [num(Number(v)), 'CEL']} />
+                  <ReferenceLine y={p.pot} stroke="var(--muted)" strokeDasharray="4 4" label={{ value: `POT ${p.pot}`, fontSize: 11, fill: 'var(--muted)', position: 'insideTopRight' }} />
+                  <Line type="monotone" dataKey="cel" stroke="var(--accent)" strokeWidth={2} dot={false} isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          <p className="help">Růst určuje věk, minuty, forma, trénink a profesionalita. Potenciál je očekávání, ne strop.</p>
+        </div>
+        <div>
+          <h3>Kariéra</h3>
+          {(p.career?.length ?? 0) === 0 ? (
+            <p className="muted">První sezóna ve hře.</p>
+          ) : (
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Sezóna</th>
+                  <th>Klub</th>
+                  <th>Soutěž</th>
+                  <th className="num">Z</th>
+                  <th className="num">G</th>
+                  <th className="num">A</th>
+                  <th className="num">Ø zn.</th>
+                  <th className="num">CEL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...(p.career ?? [])].reverse().map((c) => (
+                  <tr key={`${c.seasonYear}-${c.clubId}`}>
+                    <td>
+                      {c.seasonYear}/{String(c.seasonYear + 1).slice(2)}
+                    </td>
+                    <td>{clubOf(data, c.clubId)?.shortName}</td>
+                    <td>{data.competitions.find((x) => x.id === c.competitionId)?.shortName ?? '–'}</td>
+                    <td className="num">{c.apps}</td>
+                    <td className="num">{c.goals}</td>
+                    <td className="num">{c.assists}</td>
+                    <td className="num">{c.avgRating === null ? '–' : num(c.avgRating, 2)}</td>
+                    <td className="num">{c.cel}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
     </div>

@@ -128,6 +128,50 @@ try {
     await page.reload();
     await page.getByRole('button', { name: /Pokračovat: Bohemians/ }).click();
     await page.getByTestId('final-position').waitFor();
+    await page.getByRole('navigation').getByRole('button', { name: 'Soutěže' }).click();
+    await page.getByRole('button', { name: 'Nadstavba a baráž' }).click();
+    await page.getByRole('heading', { name: 'Skupina o titul' }).waitFor();
+    await shot('11-nadstavba');
+    await page.getByRole('button', { name: 'MOL Cup' }).click();
+    await page.getByText(/MOL Cup vyhrál/).waitFor();
+    await shot('12-mol-cup');
+  });
+
+  await check('nová sezóna a přesun dorostence do A-týmu', async () => {
+    await page.getByRole('navigation').getByRole('button', { name: 'Konec sezóny' }).click();
+    await page.getByRole('button', { name: /Začít sezónu 2027\/28/ }).click();
+    await page.locator('.topbar').getByText('Sezóna 2027/28').waitFor();
+    await page.getByRole('navigation').getByRole('button', { name: 'Soupiska' }).click();
+    const aTab = page.getByRole('button', { name: /^A-tým \(\d+\)$/ });
+    const before = Number((await aTab.innerText()).match(/\d+/)![0]);
+    await page.getByRole('button', { name: /^Mládež \(\d+\)$/ }).click();
+    await shot('13-mladez');
+    await page.getByRole('button', { name: '→ A-tým' }).first().click();
+    const after = Number((await aTab.innerText()).match(/\d+/)![0]);
+    if (after !== before + 1) throw new Error(`A-tým měl ${before}, po přesunu ${after}`);
+  });
+
+  for (const year of [2027, 2028, 2029, 2030]) {
+    await check(`sezóna ${year}/${String(year + 1).slice(2)} až do konce`, async () => {
+      await page.getByRole('button', { name: 'Přeskočit na konec sezóny' }).click();
+      await page.getByTestId('final-position').waitFor({ timeout: 90_000 });
+      if (year < 2030) {
+        await page.getByRole('button', { name: new RegExp(`Začít sezónu ${year + 1}/${String(year + 2).slice(2)}`) }).click();
+        await page.locator('.topbar').getByText(`Sezóna ${year + 1}/${String(year + 2).slice(2)}`).waitFor();
+      }
+    });
+  }
+
+  await check('po 5 sezónách: historie, graf vývoje hráče', async () => {
+    await page.getByRole('heading', { name: 'Moje sezóny' }).waitFor();
+    const rows = await page.getByRole('heading', { name: 'Moje sezóny' }).locator('..').locator('tbody tr').count();
+    if (rows !== 4) throw new Error(`v historii je ${rows} sezón (čekáno 4 dokončené + aktuální na obrazovce)`);
+    await shot('14-konec-5-sezony');
+    await page.getByRole('navigation').getByRole('button', { name: 'Soupiska' }).click();
+    await page.locator('table.data tbody tr').first().click();
+    await page.getByLabel('graf vývoje CEL').locator('svg').first().waitFor();
+    await page.getByRole('heading', { name: 'Kariéra' }).waitFor();
+    await shot('15-profil-vyvoj');
   });
 } finally {
   await browser.close();

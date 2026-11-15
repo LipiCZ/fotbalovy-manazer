@@ -15,13 +15,18 @@ export interface Selection {
 export type SelectionCache = Map<string, Selection>;
 
 export function selectionFor(clubId: string, squad: readonly Player[], data: GameData, cache?: SelectionCache): Selection {
+  const minCondition = data.balance.rotation.minCondition;
+  const fresh = squad.filter((p) => isAvailable(p) && p.state.condition >= minCondition);
+  // Tired players rest when there are enough fresh ones (incl. a goalkeeper).
+  const rotate = fresh.length >= 14 && fresh.some((p) => p.positions[0] === 'GK');
+  const usable = (p: Player) => isAvailable(p) && (!rotate || p.state.condition >= minCondition);
   const key = squad
-    .filter((p) => !isAvailable(p))
+    .filter((p) => !usable(p))
     .map((p) => p.id)
     .join(',');
   const cached = cache?.get(clubId);
   if (cached && cached.key === key) return cached;
-  const available = squad.filter(isAvailable);
+  const available = squad.filter(usable);
   const choice = chooseLineup(data.tactics.formations, available, data.balance);
   const inXi = new Set(choice.lineup.filter((p): p is Player => p !== null).map((p) => p.id));
   const entry: Selection = { key, choice, strength: lineupStrength(choice, data.balance), rest: available.filter((p) => !inXi.has(p.id)) };

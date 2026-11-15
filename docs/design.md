@@ -36,6 +36,8 @@ Seznamy 2. a 3. ligy jsou ze statistických webů. Před tvorbou datových soubo
 
 **B-týmy:** nemohou postoupit do soutěže svého A-týmu ani do 1. ligy. Velké kluby mají B-tým ve 2. nebo 3. lize, menší kluby v divizi nebo krajském přeboru. Nižší soutěže se nesimulují zápas po zápasu, jen jako zjednodušené výsledky a statistiky.
 
+**Doplněno ve fázi 4 (implementace):** nadstavba 1. ligy se hraje v obou skupinách **každý s každým jednou** (5 kol), body ze základní části se přenáší. Play-off o 7. místo: semifinále 7.–10. a 8.–9. u lépe umístěného, vítězové hrají o 7. místo. Baráž: 14. a 15. z 1. ligy proti 2. a 3. způsobilému týmu 2. ligy, dva zápasy (první doma tým 2. ligy), rozhoduje součet, pak prodloužení a penalty. Ze 2. ligy sestupuje tolik týmů, kolik postoupí ze 3. ligy (vítěz každé skupiny, B-tým jen pokud smí). **Pyramida je zatím od 3. ligy dolů uzavřená:** z ČFL ani MSFL se nesestupuje; sestupující ze 2. ligy jdou do skupiny podle kraje (Středočeský kraj a Vysočina vyrovnávají velikosti skupin). B-tým, který by musel pod 3. ligu, ze soutěží vypadne. Nižší soutěže mohou přibýt později.
+
 **MOL Cup:** jako ve skutečnosti. Jedno vyřazovací utkání, v úvodních kolech hraje doma tým z nižší soutěže, kluby z evropských pohárů vstupují později. Finále je v květnu. Vítěz má jistou minimálně hlavní fázi Konferenční ligy. Pro klub ze 3. ligy je to šance na velký zápas a mimořádný příjem.
 
 ## 3. Herní smyčka a kalendář
@@ -54,13 +56,13 @@ Hra hráče zastaví jen tehdy, když potřebuje rozhodnutí. Tlačítko Pokrač
 
 | Období | Co se děje |
 | --- | --- |
-| 1. 7. | nový rok: konce smluv (30. 6.), otevření přestupního okna, rozpočet, cíle vedení |
+| 1. 7. | nový rok: konce smluv (30. 6.), otevření přestupního okna, rozpočet, cíle vedení, nábor do akademie |
 | červenec | příprava, soustředění, přátelské zápasy |
 | konec července | start ligy |
 | začátek září | konec letního okna; hráči v posledním roce smlouvy smí jednat s jinými kluby |
-| podzim | liga, MOL Cup, nábor do akademie, skautské tipy |
+| podzim | liga, MOL Cup, skautské tipy |
 | prosinec | zimní pauza, půlroční hodnocení od vedení |
-| leden | zimní okno, soustředění |
+| leden | zimní okno, soustředění, nábor do akademie |
 | únor–duben | jaro, boj o postup nebo záchranu |
 | květen | nadstavba, finále MOL Cupu, baráže |
 | červen | sezónní report: výkazy, vývoj hráčů, reputace, ceny sezóny |
@@ -124,7 +126,11 @@ Růst určuje věk, minuty a hlavně forma. Potenciál je očekávání, ne stro
 
 **Příklad:** talent v 17 letech s CA 46 a PA 76. B-tým +7, hostování ve 2. lize +6, střídající hráč v A-týmu +5, pak základní sestava. Ve 21 letech má CA kolem 70–72, s nadprůměrnou formou 75+.
 
-**Nábor do akademie:** každé jaro 5–10 dorostenců. Kvalita závisí na úrovni akademie, regionu a reputaci klubu. PA nad 70 má zhruba jeden z deseti.
+**Nábor do akademie:** dvakrát ročně, v lednu a v červenci (zadání uživatele), celkem 5–10 dorostenců za rok (2–5 v každém náboru).
+
+**Doplněno ve fázi 4 (implementace):** vývoj běží každý měsíc. Podíl minut se počítá mírně (podíl^0,6), aby střídající hráč rostl i díky tréninku s lepšími. Scénář výše vychází: s průměrnou formou +7 / +7 / +5 / +5 a CEL ~69–70 ve 21 letech, s formou 6,8–7,4 kolem 72, s formou 7,5+ 75+ (u POT 76). Nenaplněný potenciál od 23 let slábne (mezera POT − CEL se každý rok zmenší o 30 %). Talent je soustředěný do akademií velkých klubů; POT 70+ má ~6–7 % dorostenců, POT 78+ přibude ~5× za rok, POT 85+ zhruba jednou za 2 roky. Konce kariér od ~31 let, slabší hráči dřív. Intenzita tréninku: lehký (růst ×0,85, rychlejší regenerace, bez zranění), normální, tvrdý (růst ×1,15, pomalejší regenerace, víc zranění); výchozí volí asistent podle programu. Do fáze 6 (přestupy) AI kluby přesouvají hráče mezi akademií, B-týmem a A-týmem, a když klesnou hluboko pod svou cílovou sílu, podepíší volného hráče.
+
+Kvalita náboru závisí na úrovni akademie, regionu a reputaci klubu (zatím jen podle velikosti klubu a úrovně soutěže; úroveň akademie a reputace přijdou ve fázi 7). PA nad 70 má zhruba jeden z deseti.
 
 ## 6. Skauting a talenty
 
@@ -466,7 +472,7 @@ fotbalovy-manazer/
 | 1 | 82 klubů v JSON, generátor fiktivních hráčů, rozpis zápasů, tabulky | příkaz odsimuluje celou sezónu s náhodnými výsledky |
 | 2 | model hráče (CEL, TS, FS, forma, kondice), simulace zápasu, známky, kalibrace | 1 000 sezón dá průměr gólů a domácích výher v cílovém rozsahu |
 | 3 | základní UI: Domů, Soupiska, Profil, Taktika, rychlý zápas, Soutěže, Pokračovat, ukládání | **MVP: odehraju celou sezónu** (hotovo) |
-| 4 | vývoj hráčů, stárnutí, mládež, B-týmy, přechod sezóny, postupy, nadstavba, baráže, MOL Cup | odehraju 5 sezón za sebou |
+| 4 | vývoj hráčů, stárnutí, mládež, B-týmy, přechod sezóny, postupy, nadstavba, baráže, MOL Cup | odehraju 5 sezón za sebou (hotovo) |
 | 5 | ekonomika: rozpočet, platy, vstupné, transakce, výkazy, cash flow | sezónní report s výkazy |
 | 6 | přestupy, smlouvy, přestupní listina, volní hráči, skauting, živý trh AI | koupím, prodám a najdu talent |
 | 7 | stadion, město, investor, vztahy, média, humor | vytáhnu klub o ligu výš |

@@ -1,10 +1,11 @@
 // Serializable game state (saved as-is). No Maps, no class instances.
 
+import type { TrainingIntensity } from '../data.ts';
 import type { Tactics } from '../lineup.ts';
 import type { MatchReport, TeamMatchStats } from '../match/types.ts';
 import type { CompetitionId, Fixture, MatchResult, Player, Position } from '../types.ts';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 /** Compact per-match record kept for every match. */
 export interface MatchSummary extends MatchResult {
@@ -15,8 +16,12 @@ export interface MatchSummary extends MatchResult {
   injuries: number;
   /** Goal scorers for result lists: [playerId, minute, side]. */
   scorers: [string, number, 'home' | 'away'][];
+  extraTime?: boolean;
+  /** Penalty shoot-out result [home, away]. */
+  penalties?: [number, number];
 }
 
+/** Regular season of a league. */
 export interface CompetitionProgress {
   id: CompetitionId;
   clubIds: string[];
@@ -27,6 +32,48 @@ export interface CompetitionProgress {
   results: MatchSummary[];
 }
 
+/** A fixture with its own date (post-season, play-off, barrage). */
+export interface DatedFixture extends Fixture {
+  date: string;
+  /** Knockout: extra time and penalties when level (for a two-legged tie: on aggregate in leg 2). */
+  knockout?: boolean;
+  /** Two-legged tie: index of the tie and the leg. */
+  tie?: number;
+  leg?: 1 | 2;
+  neutral?: boolean;
+}
+
+export type StageId = 'title-group' | 'relegation-group' | 'placement-semi' | 'placement-final' | 'barrage';
+
+export interface StageProgress {
+  id: StageId;
+  clubIds: string[];
+  fixtures: DatedFixture[];
+  results: MatchSummary[];
+}
+
+export interface CupTie {
+  homeId: string;
+  /** null = bye. */
+  awayId: string | null;
+  result?: MatchSummary;
+  winnerId?: string;
+}
+
+export interface CupRound {
+  name: string;
+  date: string;
+  neutral?: boolean;
+  ties: CupTie[];
+}
+
+export interface CupState {
+  rounds: CupRound[];
+  /** Index of the next round to play (rounds.length when finished). */
+  current: number;
+  winnerId?: string;
+}
+
 /** The manager's chosen line-up; slots follow tactics.formation. */
 export interface UserLineup {
   slots: Position[];
@@ -34,13 +81,23 @@ export interface UserLineup {
   benchIds: string[];
 }
 
+export interface UserMatch {
+  date: string;
+  /** "Chance Liga, 12. kolo", "MOL Cup, osmifinále", "Baráž, 2. zápas" … */
+  label: string;
+  report: MatchReport;
+}
+
+export type TrainingSetting = TrainingIntensity | 'assistant';
+
 export interface UserTeamState {
   tactics: Tactics;
   lineup: UserLineup;
   /** Delegated to the assistant (design, section 3): formation and players picked before every match. */
   autoLineup: boolean;
-  /** Full reports of the user's matches this season. */
-  reports: MatchReport[];
+  training: TrainingSetting;
+  /** The user's matches this season (full reports). */
+  matches: UserMatch[];
 }
 
 export interface PlayerSeasonStats {
@@ -55,13 +112,33 @@ export interface PlayerSeasonStats {
   motm: number;
 }
 
-export type NewsKind = 'injury' | 'suspension' | 'lineup' | 'recovered' | 'info';
+export type NewsKind = 'injury' | 'suspension' | 'lineup' | 'recovered' | 'academy' | 'development' | 'season' | 'info';
 
 export interface NewsItem {
   date: string;
   kind: NewsKind;
   text: string;
   playerId?: string;
+}
+
+export interface Movement {
+  clubId: string;
+  from: CompetitionId | null;
+  to: CompetitionId | null;
+  /** 'promoted' | 'relegated' | 'barrage-won' | 'barrage-lost' | 'forced' (B-team) | 'regrouped' | 'removed' */
+  reason: 'promoted' | 'relegated' | 'barrage' | 'forced' | 'regrouped' | 'removed';
+}
+
+/** Summary of a finished season (kept in history). */
+export interface SeasonRecord {
+  seasonYear: number;
+  /** Final order of every competition. */
+  standings: Partial<Record<CompetitionId, string[]>>;
+  cupWinnerId: string | null;
+  movements: Movement[];
+  userClubId: string | null;
+  userCompetitionId: CompetitionId | null;
+  userPosition: number | null;
 }
 
 export interface GameState {
@@ -73,11 +150,18 @@ export interface GameState {
   userClubId: string | null;
   /** Date of the last processed day (starts on 1 July). */
   date: string;
+  /** Club -> competition this season. Clubs outside the simulated pyramid (removed B-teams) are absent. */
+  membership: Record<string, CompetitionId>;
+  /** All players including academies. */
   players: Player[];
   competitions: CompetitionProgress[];
+  stages: StageProgress[];
+  cup: CupState | null;
   user: UserTeamState | null;
   playerStats: Record<string, PlayerSeasonStats>;
   news: NewsItem[];
+  history: SeasonRecord[];
+  /** The whole season including post-season, barrage and cup is over. */
   finished: boolean;
 }
 

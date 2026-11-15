@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { squadOf } from '../../engine/game/advance.ts';
+import { academyOf, squadOf } from '../../engine/game/advance.ts';
+import { exactAge } from '../../engine/game/development.ts';
+import { activeReserveTeam, type SquadTarget } from '../../engine/game/userTeam.ts';
 import { averageRating, formOf } from '../../engine/game/stats.ts';
 import { ageOn, fs, overall, seasonStartDate, ts } from '../../engine/players/rating.ts';
 import { POSITION_LABEL_CS, POSITIONS, type Player } from '../../engine/types.ts';
@@ -10,9 +12,37 @@ import { num } from '../format.ts';
 export function SquadScreen() {
   const { game, data } = useGame();
   const userClubId = game.userClubId as string;
-  const reserveTeams = data.clubs.filter((c) => c.parentClubId === userClubId);
-  const [teamId, setTeamId] = useState(userClubId);
-  const squad = squadOf(game, teamId);
+  const bId = activeReserveTeam(data, game.membership, userClubId);
+  const bClub = data.clubs.find((c) => c.id === bId);
+  const [tab, setTab] = useState<SquadTarget>('A');
+  const teamId = tab === 'B' && bId ? bId : userClubId;
+  const squad = tab === 'academy' ? academyOf(game, userClubId) : squadOf(game, teamId);
+  const store = getAppStore().getState();
+  const limits = (id: string) => {
+    const comp = game.membership[id];
+    const level = data.competitions.find((c) => c.id === comp)?.level;
+    return level ? b.squads.byLevel[`${level}`] : null;
+  };
+  const moveButtons = (p: Player) => {
+    const targets: { t: SquadTarget; label: string }[] = [];
+    if (tab !== 'A') targets.push({ t: 'A', label: '→ A-tým' });
+    if (tab !== 'B' && bId) targets.push({ t: 'B', label: '→ B-tým' });
+    if (tab !== 'academy' && exactAge(p.birthDate, game.date) < b.academy.releaseAtAge) targets.push({ t: 'academy', label: '→ mládež' });
+    return (
+      <span className="row" onClick={(e) => e.stopPropagation()}>
+        {targets.map(({ t, label }) => (
+          <button key={t} style={{ padding: '2px 6px', fontSize: 12 }} onClick={() => store.movePlayer(p.id, t)}>
+            {label}
+          </button>
+        ))}
+        {tab === 'academy' && (
+          <button style={{ padding: '2px 6px', fontSize: 12 }} onClick={() => store.releaseFromAcademy(p.id)} title="Hráč odejde z klubu">
+            uvolnit
+          </button>
+        )}
+      </span>
+    );
+  };
   const b = data.balance;
   const onDate = seasonStartDate(game.seasonYear);
   const inXi = new Set(game.user?.lineup.playerIds ?? []);
@@ -44,24 +74,33 @@ export function SquadScreen() {
       sortValue: (p) => averageRating(game.playerStats[p.id]) ?? 0,
     },
     { key: 'status', label: 'Stav', render: (p) => <StatusIcons player={p} /> },
-    ...(teamId === userClubId
-      ? [{ key: 'role', label: 'Sestava', render: (p: Player) => (inXi.has(p.id) ? 'základ' : onBench.has(p.id) ? 'lavička' : '') }]
-      : []),
+    ...(tab === 'A' ? [{ key: 'role', label: 'Sestava', render: (p: Player) => (inXi.has(p.id) ? 'základ' : onBench.has(p.id) ? 'lavička' : '') }] : []),
+    { key: 'move', label: 'Přesun', render: moveButtons },
   ];
+  const lim = tab === 'academy' ? null : limits(teamId);
 
   return (
     <div className="card">
       <h2>Soupiska</h2>
       <div className="tabs">
-        <button className={teamId === userClubId ? 'active' : ''} onClick={() => setTeamId(userClubId)}>
-          A-tým
+        <button className={tab === 'A' ? 'active' : ''} onClick={() => setTab('A')}>
+          A-tým ({squadOf(game, userClubId).length})
         </button>
-        {reserveTeams.map((c) => (
-          <button key={c.id} className={teamId === c.id ? 'active' : ''} onClick={() => setTeamId(c.id)}>
-            {c.shortName} (jen ke čtení)
+        {bClub && (
+          <button className={tab === 'B' ? 'active' : ''} onClick={() => setTab('B')}>
+            {bClub.shortName} ({squadOf(game, bClub.id).length})
           </button>
-        ))}
+        )}
+        <button className={tab === 'academy' ? 'active' : ''} onClick={() => setTab('academy')}>
+          Mládež ({academyOf(game, userClubId).length})
+        </button>
       </div>
+      <p className="help">
+        {tab === 'A' && lim && `Obvyklá velikost kádru v této soutěži: ${lim.min}–${lim.max} hráčů. `}
+        {tab === 'B' && 'B-tým hraje sám, ty jen sleduješ a přesouváš hráče. '}
+        {tab === 'academy' &&
+          `Dorostenci hrají nesimulovanou dorosteneckou ligu a rostou podle minut a formy. Nábor je v lednu a v červenci, v ${b.academy.releaseAtAge} letech hráč z akademie odchází, pokud ho nevytáhneš. `}
+      </p>
       <SortableTable
         rows={squad}
         columns={columns}

@@ -3,6 +3,7 @@
 import type { GameData } from '../data.ts';
 import type { MatchReport } from '../match/types.ts';
 import type { CompetitionId, Player } from '../types.ts';
+
 import { emptyStats, type GameState, type PlayerSeasonStats } from './state.ts';
 
 export function recordStats(stats: Record<string, PlayerSeasonStats>, report: MatchReport): void {

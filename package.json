@@ -12,7 +12,8 @@
     "simulate": "tsx scripts/simulate-season.ts",
     "match": "tsx scripts/simulate-match.ts",
     "calibrate": "tsx scripts/calibrate.ts",
-    "e2e": "tsx scripts/e2e.ts"
+    "e2e": "tsx scripts/e2e.ts",
+    "calibrate:world": "tsx scripts/calibrate-world.ts"
   },
   "repository": {
     "type": "git",
@@ -25,6 +26,7 @@
   "dependencies": {
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "recharts": "^3.10.1",
     "zustand": "^5.1.0"
   },
   "devDependencies": {

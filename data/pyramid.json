@@ -1,0 +1,39 @@
+{
+  "_note": "Pravidla soutěžní pyramidy (design, sekce 2). Uzavřený systém: z 3. ligy se nesestupuje (nižší soutěže zatím nejsou). Formát nadstavby a baráže podle zadání; detaily play-off a počty postupujících jsou herní návrh, neověřeno proti FAČR.",
+  "firstLeague": {
+    "id": "chance-liga",
+    "titleGroup": [1, 6],
+    "placementPlayoff": [7, 10],
+    "relegationGroup": [11, 16],
+    "_groupsNote": "Nadstavba: v obou skupinách každý s každým jednou, body ze základní části se přenáší. Play-off 7.–10.: semifinále 7.–10. a 8.–9. u lépe umístěného, vítězové hrají o 7. místo.",
+    "directRelegation": 1,
+    "barrage": {
+      "pairs": [[14, 3], [15, 2]],
+      "_note": "[místo v 1. lize, místo ve 2. lize]; dva zápasy, první doma tým 2. ligy, rozhoduje součet skóre, pak prodloužení a penalty"
+    }
+  },
+  "secondLeague": {"id": "cnl", "directPromotion": 1, "size": 16},
+  "thirdLevel": {
+    "promotionPerGroup": 1,
+    "groups": {
+      "cfl-a": {"regions": ["praha", "jihocesky", "plzensky", "karlovarsky"]},
+      "cfl-b": {"regions": ["ustecky", "liberecky", "kralovehradecky", "pardubicky"]},
+      "msfl": {"regions": ["jihomoravsky", "olomoucky", "zlinsky", "moravskoslezsky"]}
+    },
+    "flexibleRegions": {"stredocesky": ["cfl-a", "cfl-b"], "vysocina": ["msfl", "cfl-a", "cfl-b"]},
+    "targetSizes": {"cfl-a": 16, "cfl-b": 16, "msfl": 18}
+  },
+  "cup": {
+    "name": "MOL Cup",
+    "_note": "Jeden zápas, při remíze prodloužení a penalty. Hrají jen A-týmy. Kolo = první středa od data. Volné losy (do pavouka 2^n) dostanou nejlepší kluby 1. ligy předchozí sezóny (náhrada za kluby z evropských pohárů).",
+    "rounds": [
+      {"name": "1. kolo", "date": "08-26"},
+      {"name": "2. kolo", "date": "09-23"},
+      {"name": "osmifinále", "date": "10-28"},
+      {"name": "čtvrtfinále", "date": "03-10"},
+      {"name": "semifinále", "date": "04-14"},
+      {"name": "finále", "date": "05-19", "neutral": true}
+    ],
+    "lowerLevelAtHomeRounds": 3
+  }
+}

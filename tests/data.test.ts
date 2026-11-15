@@ -5,6 +5,7 @@ import regionsJson from '../data/regions.json';
 import namesJson from '../data/names.json';
 import balanceJson from '../data/balance.json';
 import tacticsJson from '../data/tactics.json';
+import pyramidJson from '../data/pyramid.json';
 import { DataValidationError, loadDefaultData, validateGameData } from '../src/engine/data.ts';
 
 type RawClub = Record<string, unknown> & { id: string };
@@ -15,6 +16,7 @@ const raw = (clubs: RawClub[] = structuredClone(clubsJson) as RawClub[]) => ({
   names: namesJson,
   balance: balanceJson,
   tactics: tacticsJson,
+  pyramid: pyramidJson,
 });
 const clubs = () => structuredClone(clubsJson) as RawClub[];
 const problemsOf = (fn: () => unknown): string[] => {

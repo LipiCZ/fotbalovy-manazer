@@ -25,7 +25,7 @@ export interface GeneratedPlayer extends Player {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-function interpolate(points: [number, number][], x: number): number {
+export function interpolate(points: [number, number][], x: number): number {
   const first = points[0];
   const last = points[points.length - 1];
   if (!first || !last) return 0;
@@ -40,7 +40,7 @@ function interpolate(points: [number, number][], x: number): number {
 }
 
 /** Random birth date such that the player is exactly `age` on 1 July of seasonYear. */
-function birthDateForAge(age: number, seasonYear: number, rng: Rng): string {
+export function birthDateForAge(age: number, seasonYear: number, rng: Rng): string {
   // Born between 2 July (seasonYear - age - 1) and 1 July (seasonYear - age).
   const start = Date.UTC(seasonYear - age - 1, 6, 2);
   const end = Date.UTC(seasonYear - age, 6, 1);
@@ -59,7 +59,7 @@ export function starterMean(club: Club, level: Level, clubsById: Map<string, Clu
   return base + s.sizeOffset[`${club.size}`];
 }
 
-function pickPositions(main: Position, balance: Balance, rng: Rng): Position[] {
+export function pickPositions(main: Position, balance: Balance, rng: Rng): Position[] {
   const positions: Position[] = [main];
   const pool = rng.shuffle(balance.squad.relatedPositions[main]);
   if (pool.length > 0 && rng.chance(balance.squad.secondPositionChance)) {
@@ -126,7 +126,7 @@ function hiddenValue(
   return clamp(Math.round(rng.normal(cfg.mean + Math.max(0, age - 22) * cfg.perYearOver22, cfg.sd)), lo, hi);
 }
 
-function generateHidden(age: number, balance: Balance, rng: Rng): HiddenAttributes {
+export function generateHidden(age: number, balance: Balance, rng: Rng): HiddenAttributes {
   const h = balance.attributes.hidden;
   const { minAttribute: lo, maxAttribute: hi } = balance.strength;
   return {

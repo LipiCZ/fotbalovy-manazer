@@ -1,9 +1,18 @@
-import { competitionOfClub, nextUserMatch, squadOf, tableFor } from '../../engine/game/advance.ts';
+import type { TrainingSetting } from '../../engine/game/state.ts';
+import { competitionOfClub, nextUserMatch, squadOf } from '../../engine/game/advance.ts';
+import { groupTable, regularTable, stageOf } from '../../engine/game/postseason.ts';
 import { getAppStore, useGame } from '../../state/store.ts';
-import { ClubLabel, clubOf, FormBadges, outcomeFor, playerOf, PlayerLink } from '../components.tsx';
+import { ClubLabel, clubOf, FormBadges, playerOf, PlayerLink } from '../components.tsx';
 import { formatDate, formatDateLong } from '../format.ts';
 
-const NEWS_ICON = { injury: '✚', suspension: '🟥', lineup: '🔁', recovered: '✅', info: 'ℹ️' } as const;
+const NEWS_ICON = { injury: '✚', suspension: '🟥', lineup: '🔁', recovered: '✅', academy: '🎓', development: '📈', season: '📅', info: 'ℹ️' } as const;
+
+const TRAINING: { id: TrainingSetting; label: string; help: string }[] = [
+  { id: 'assistant', label: 'asistent', help: 'Asistent volí podle programu: tvrdě, když je do zápasu týden, lehce těsně před zápasem.' },
+  { id: 'light', label: 'lehký', help: 'Hráči rychleji regenerují a nezraní se, ale rostou pomaleji.' },
+  { id: 'normal', label: 'normální', help: 'Vyvážený trénink.' },
+  { id: 'hard', label: 'tvrdý', help: 'Hráči rostou rychleji (+15 %), ale pomaleji regenerují a víc se zraňují.' },
+];
 
 export function HomeScreen() {
   const { game, data } = useGame();
@@ -11,14 +20,25 @@ export function HomeScreen() {
   const userClubId = game.userClubId as string;
   const progress = competitionOfClub(game, userClubId);
   const competition = data.competitions.find((c) => c.id === progress?.id);
-  const next = nextUserMatch(game);
-  const table = progress ? tableFor(game, progress.id, data) : [];
+  const next = nextUserMatch(game, data);
+  // During the post-season of the 1st league show the group table.
+  const group = ['title-group', 'relegation-group'].map((id) => stageOf(game, id as 'title-group')).find((s) => s?.clubIds.includes(userClubId));
+  const table = group ? groupTable(game, group.id as 'title-group', data) : progress ? regularTable(game, progress.id, data) : [];
   const pos = table.findIndex((r) => r.clubId === userClubId);
-  const excerpt = table.slice(Math.max(0, Math.min(pos - 2, table.length - 5)), Math.max(0, Math.min(pos - 2, table.length - 5)) + 5);
-  const myResults = (progress?.results ?? []).filter((r) => r.homeId === userClubId || r.awayId === userClubId);
-  const last = myResults.at(-1);
+  const start = Math.max(0, Math.min(pos - 2, table.length - 5));
+  const excerpt = table.slice(start, start + 5);
+  const matches = game.user?.matches ?? [];
+  const last = matches.at(-1);
+  const outcomes = matches.slice(-5).map((m) => {
+    const own = m.report.homeId === userClubId ? m.report.homeGoals : m.report.awayGoals;
+    const opp = m.report.homeId === userClubId ? m.report.awayGoals : m.report.homeGoals;
+    const pens = m.report.penalties;
+    if (own === opp && pens) return (m.report.homeId === userClubId ? pens[0] > pens[1] : pens[1] > pens[0]) ? 'W' : 'L';
+    return own > opp ? 'W' : own < opp ? 'L' : 'D';
+  });
   const squad = squadOf(game, userClubId);
   const unavailable = squad.filter((p) => p.state.injury || p.state.suspensionMatches > 0);
+  const training = TRAINING.find((t) => t.id === (game.user?.training ?? 'assistant'));
 
   return (
     <div className="grid cols-2">
@@ -27,11 +47,10 @@ export function HomeScreen() {
         {next ? (
           <>
             <div className="big">
-              {clubOf(data, next.fixture.homeId)?.shortName} – {clubOf(data, next.fixture.awayId)?.shortName}
+              {clubOf(data, next.homeId)?.shortName} – {clubOf(data, next.awayId)?.shortName}
             </div>
             <p className="muted">
-              {competition?.name}, {next.round}. kolo · {formatDateLong(next.date)} · {next.fixture.homeId === userClubId ? 'doma' : 'venku'} (
-              {clubOf(data, next.fixture.homeId)?.city})
+              {next.label} · {formatDateLong(next.date)} · {next.homeId === userClubId ? 'doma' : 'venku'} ({clubOf(data, next.homeId)?.city})
             </p>
             <div className="row">
               <button className="primary" onClick={() => void store.continueGame()}>
@@ -41,16 +60,34 @@ export function HomeScreen() {
             </div>
             {game.user?.autoLineup && <p className="help">Sestavu vybírá asistent.</p>}
           </>
+        ) : game.finished ? (
+          <>
+            <p>Sezóna skončila.</p>
+            <button className="primary" onClick={() => store.navigate({ name: 'seasonEnd' })}>
+              Konec sezóny a nová sezóna
+            </button>
+          </>
         ) : (
-          <p>Tvůj tým už má sezónu odehranou. {game.finished ? '' : 'Ostatní soutěže ještě hrají.'}</p>
+          <p>Tvůj tým teď nehraje, ostatní soutěže ještě pokračují.</p>
         )}
+        <div className="field" style={{ marginTop: 14 }}>
+          <label htmlFor="training">Trénink</label>
+          <select id="training" value={training?.id} onChange={(e) => store.setTraining(e.target.value as TrainingSetting)}>
+            {TRAINING.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <div className="help">{training?.help}</div>
+        </div>
       </section>
 
       <section className="card">
         <h3>
           Poslední zápas
-          {last && game.user && (
-            <button className="link muted" onClick={() => store.navigate({ name: 'match', reportIndex: game.user!.reports.length - 1 })}>
+          {last && (
+            <button className="link muted" onClick={() => store.navigate({ name: 'match', reportIndex: matches.length - 1 })}>
               detail →
             </button>
           )}
@@ -58,22 +95,23 @@ export function HomeScreen() {
         {last ? (
           <>
             <div className="big">
-              {clubOf(data, last.homeId)?.shortName} {last.homeGoals} : {last.awayGoals} {clubOf(data, last.awayId)?.shortName}
+              {clubOf(data, last.report.homeId)?.shortName} {last.report.homeGoals} : {last.report.awayGoals} {clubOf(data, last.report.awayId)?.shortName}
+              {last.report.penalties && <span className="muted"> (pen. {last.report.penalties.join(':')})</span>}
             </div>
             <p className="muted">
-              {last.round}. kolo · {formatDate(last.date)}
+              {last.label} · {formatDate(last.date)}
             </p>
           </>
         ) : (
           <p className="muted">Sezóna ještě nezačala.</p>
         )}
         <h3 style={{ marginTop: 12 }}>Forma</h3>
-        <FormBadges outcomes={myResults.slice(-5).map((r) => outcomeFor(r, userClubId))} />
+        <FormBadges outcomes={outcomes} />
       </section>
 
       <section className="card">
         <h3>
-          {competition?.name}
+          {group ? (group.id === 'title-group' ? 'Skupina o titul' : 'Skupina o záchranu') : competition?.name}
           <button className="link muted" onClick={() => store.navigate({ name: 'competitions', ...(progress ? { competitionId: progress.id } : {}) })}>
             celá tabulka →
           </button>
@@ -91,7 +129,7 @@ export function HomeScreen() {
           <tbody>
             {excerpt.map((r) => (
               <tr key={r.clubId} className={r.clubId === userClubId ? 'me' : ''}>
-                <td>{table.indexOf(r) + 1}.</td>
+                <td>{table.indexOf(r) + 1 + (group?.id === 'relegation-group' ? 10 : 0)}.</td>
                 <td>
                   <ClubLabel club={clubOf(data, r.clubId)} />
                 </td>
@@ -127,7 +165,7 @@ export function HomeScreen() {
           <ul style={{ paddingLeft: 18, margin: 0 }}>
             {[...game.news]
               .reverse()
-              .slice(0, 8)
+              .slice(0, 10)
               .map((n, i) => {
                 const p = playerOf(game, n.playerId);
                 return (

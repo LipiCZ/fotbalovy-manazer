@@ -19,7 +19,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const club = clubOf(data, game.userClubId);
   const { accent, onAccent } = club ? clubAccent(club) : { accent: '#1f6f43', onAccent: '#fff' };
   const store = getAppStore().getState();
-  const next = nextUserMatch(game);
+  const next = nextUserMatch(game, data);
 
   return (
     <div className="app" style={{ ['--accent' as string]: accent, ['--on-accent' as string]: onAccent }}>
@@ -35,7 +35,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </button>
         )}
         <button className="primary" onClick={() => void store.continueGame()} disabled={busy !== null}>
-          {game.finished ? 'Konec sezóny' : next ? `Pokračovat · ${next.round}. kolo` : 'Pokračovat'}
+          {game.finished ? 'Konec sezóny' : next ? `Pokračovat · ${next.label.split(', ').at(-1)}` : 'Pokračovat'}
           <kbd>mezerník</kbd>
         </button>
       </header>

@@ -155,6 +155,22 @@ export interface PlayerState {
   suspensionMatches: number;
   /** Yellow cards this season in the league (for accumulation bans). */
   yellowCards: number;
+  /** Months in senior (A or B team) football – adaptation (design, section 5). */
+  seniorMonths?: number;
+}
+
+/** One finished season of a player's career. */
+export interface CareerSeason {
+  seasonYear: number;
+  clubId: string;
+  competitionId: string | null;
+  apps: number;
+  goals: number;
+  assists: number;
+  avgRating: number | null;
+  cel: number;
+  /** Share of the club's minutes the player played (0–1). */
+  minutesShare: number;
 }
 
 export interface Player {
@@ -174,6 +190,14 @@ export interface Player {
   pot: number;
   clubId: string;
   state: PlayerState;
+  /** In the club's academy (youth team), not registered for senior matches. */
+  academy?: boolean;
+  /** How much POT was raised by exceptional seasons (max balance.development.potentialRaise.cap). */
+  potRaised?: number;
+  /** Past seasons. */
+  career?: CareerSeason[];
+  /** CEL at every monthly development tick (oldest first). */
+  celHistory?: number[];
 }
 
 export interface Fixture {

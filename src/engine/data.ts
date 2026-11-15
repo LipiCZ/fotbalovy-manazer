@@ -8,6 +8,7 @@ import regionsJson from '../../data/regions.json';
 import namesJson from '../../data/names.json';
 import balanceJson from '../../data/balance.json';
 import tacticsJson from '../../data/tactics.json';
+import pyramidJson from '../../data/pyramid.json';
 import { hashString } from './rng.ts';
 import {
   GK_TECH,
@@ -95,6 +96,7 @@ export interface Balance {
     yellowAccumulationBan: number;
     secondYellowBan: number;
     straightRedBan: { matches: number[]; weights: number[] };
+    resetYellowsAtSeasonEnd: boolean;
   };
   ratings: {
     base: number;
@@ -119,6 +121,88 @@ export interface Balance {
     mentalityStrengthDiff: number;
     pressingStaminaDiff: number;
   };
+  development: {
+    annualByAge: [number, number][];
+    minutes: {
+      bench: number;
+      shareExponent: number;
+      levelOptimum: [number, number];
+      levelTooWeakPerPoint: number;
+      levelTooStrongPerPoint: number;
+      levelMin: number;
+    };
+    formMultiplier: [number, number][];
+    formMatches: number;
+    professionalism: { min: number; max: number };
+    potentialSoftness: number;
+    confidence: { threshold: number; minApps: number };
+    potentialRaise: { rating: number; minApps: number; min: number; max: number; cap: number };
+    split: {
+      youngTsShare: number;
+      youngUntil: number;
+      primeTsShare: number;
+      declineTsShare: number;
+      declineFrom: number;
+      decisionsPerYearFrom30: number;
+      leadershipPerYearFrom28: number;
+    };
+    attributeNoise: number;
+    irrelevantShare: number;
+    youth: { minutesMean: number; minutesSd: number; ratingMean: number; ratingSd: number };
+    adaptation: { penalty: number; minMonths: number; maxMonths: number; untilAge: number };
+    potentialDecay: { fromAge: number; share: number };
+  };
+  academy: {
+    intakeMonths: number[];
+    perIntake: [number, number];
+    age: [number, number];
+    celMeanByLevel: Record<`${Level}`, number>;
+    celSizeOffset: Record<`${ClubSize}`, number>;
+    celSd: number;
+    potGap: { mean: number; sd: number };
+    talentChance: number;
+    talentBonus: [number, number];
+    promoteFromAge: number;
+    releaseAtAge: number;
+    maxSize: number;
+  };
+  squads: {
+    byLevel: Record<`${Level}`, { min: number; max: number }>;
+    minGoalkeepers: number;
+    promoteFromBMargin: number;
+    maxSwapsPerWindow: number;
+    freeAgents: { anchorGap: number; maxPerWindow: number };
+    keepValue: { youthWeight: number; agePenalty: number };
+    /** AI B-teams keep players younger than this (older ones not good enough for the A-team leave). */
+    reserveMaxAge: number;
+  };
+  retirement: { byAge: [number, number][]; weakBonus: number; weakFromAge: number; weakCelBelowLeague: number };
+  training: Record<TrainingIntensity, { growth: number; recovery: number; injuryPerPlayerDay: number }> & {
+    assistant: { hardIfDaysToMatch: number; lightIfDaysToMatch: number };
+    injuryDays: [number, number];
+  };
+  rotation: { minCondition: number };
+}
+
+export type TrainingIntensity = 'light' | 'normal' | 'hard';
+
+export interface Pyramid {
+  firstLeague: {
+    id: CompetitionId;
+    titleGroup: [number, number];
+    placementPlayoff: [number, number];
+    relegationGroup: [number, number];
+    directRelegation: number;
+    barrage: { pairs: [number, number][] };
+  };
+  secondLeague: { id: CompetitionId; directPromotion: number; size: number };
+  thirdLevel: {
+    promotionPerGroup: number;
+    groups: Partial<Record<CompetitionId, { regions: string[] }>>;
+    flexibleRegions: Record<string, CompetitionId[]>;
+    targetSizes: Partial<Record<CompetitionId, number>>;
+  };
+  cup: { name: string; rounds: { name: string; date: string; neutral?: boolean }[]; lowerLevelAtHomeRounds: number };
 }
 
 export type Band = 'def' | 'mid' | 'att';
@@ -218,6 +302,7 @@ export interface GameData {
   names: Names;
   balance: Balance;
   tactics: TacticsData;
+  pyramid: Pyramid;
 }
 
 export interface RawGameData {
@@ -227,6 +312,7 @@ export interface RawGameData {
   names: unknown;
   balance: unknown;
   tactics: unknown;
+  pyramid: unknown;
 }
 
 export class DataValidationError extends Error {
@@ -380,6 +466,7 @@ export function validateGameData(raw: RawGameData): GameData {
     for (const key of [
       'rating', 'attributes', 'squad', 'strength', 'age', 'profile', 'potential', 'simpleResults',
       'match', 'condition', 'form', 'injuries', 'discipline', 'ratings', 'ai',
+      'development', 'academy', 'squads', 'retirement', 'training', 'rotation',
     ])
       if (!isObj(raw.balance[key])) problems.push(`balance.${key}: chybí`);
     if (problems.length === 0) {
@@ -426,9 +513,28 @@ export function validateGameData(raw: RawGameData): GameData {
     }
   }
 
+  // --- pyramid
+  const pyramid = raw.pyramid as Pyramid;
+  if (!isObj(raw.pyramid) || !isObj(raw.pyramid.firstLeague) || !isObj(raw.pyramid.thirdLevel) || !isObj(raw.pyramid.cup))
+    problems.push('pyramid: chybí firstLeague, thirdLevel nebo cup');
+  else if (problems.length === 0) {
+    const ids = new Set(competitions.map((c) => c.id));
+    if (!ids.has(pyramid.firstLeague.id) || !ids.has(pyramid.secondLeague.id)) problems.push('pyramid: neznámá soutěž 1. nebo 2. ligy');
+    for (const g of Object.keys(pyramid.thirdLevel.groups)) if (!ids.has(g as CompetitionId)) problems.push(`pyramid.thirdLevel: neznámá skupina ${g}`);
+    const regionsInGroups = new Set([...Object.values(pyramid.thirdLevel.groups).flatMap((g) => g?.regions ?? []), ...Object.keys(pyramid.thirdLevel.flexibleRegions)]);
+    for (const r of regionIds) if (!regionsInGroups.has(r)) problems.push(`pyramid.thirdLevel: kraj ${r} nemá skupinu 3. ligy`);
+    const [t0, t1] = pyramid.firstLeague.titleGroup;
+    const [r0, r1] = pyramid.firstLeague.relegationGroup;
+    const [p0, p1] = pyramid.firstLeague.placementPlayoff;
+    if (t0 !== 1 || p0 !== t1 + 1 || r0 !== p1 + 1 || p1 - p0 !== 3) problems.push('pyramid.firstLeague: skupiny nadstavby musí navazovat (play-off má 4 týmy)');
+    const firstSize = competitions.find((c) => c.id === pyramid.firstLeague.id)?.teamCount;
+    if (r1 !== firstSize) problems.push('pyramid.firstLeague: skupina o záchranu musí končit posledním místem');
+    if (pyramid.cup.rounds.length < 1) problems.push('pyramid.cup: žádná kola');
+  }
+
   if (problems.length > 0) throw new DataValidationError(problems);
   const hash = hashString(JSON.stringify(raw)).toString(16).padStart(8, '0');
-  return { hash, regions, competitions, clubs, names, balance, tactics };
+  return { hash, regions, competitions, clubs, names, balance, tactics, pyramid };
 }
 
 export function loadDefaultData(): GameData {
@@ -439,5 +545,6 @@ export function loadDefaultData(): GameData {
     names: namesJson,
     balance: balanceJson,
     tactics: tacticsJson,
+    pyramid: pyramidJson,
   });
 }

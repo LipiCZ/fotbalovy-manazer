@@ -74,7 +74,20 @@ export function playSeason(world: World, seed: string | number = world.seed, opt
   const data = world.data;
   const state = createGameState(world, { seed, userClubId: null });
   const reports = new Map<CompetitionId, MatchReport[]>();
-  playToSeasonEnd(state, data, options.keepReports ? { onReport: (r, id) => (reports.get(id) ?? reports.set(id, []).get(id))?.push(r) } : {});
+  playToSeasonEnd(
+    state,
+    data,
+    options.keepReports
+      ? {
+          onReport: (r, id) => {
+            if (id === null) return; // post-season and cup reports are not part of the league seasons
+            const list = reports.get(id) ?? [];
+            list.push(r);
+            reports.set(id, list);
+          },
+        }
+      : {},
+  );
   return {
     seed: String(seed),
     seasonYear: world.seasonYear,

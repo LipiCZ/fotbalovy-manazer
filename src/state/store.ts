@@ -4,9 +4,12 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { useStore } from 'zustand';
 import type { GameData } from '../engine/data.ts';
-import { advanceDay, advanceToNextUserMatch, newGame, squadOf } from '../engine/game/advance.ts';
+import { advanceDay, advanceToNextUserMatch, invalidateRuntime, newGame, runtimeOf, squadOf } from '../engine/game/advance.ts';
+import { exactAge } from '../engine/game/development.ts';
+import { startNewSeason } from '../engine/game/transition.ts';
+import { moveUserPlayer, type SquadTarget } from '../engine/game/userTeam.ts';
 import { makeSave, parseSave, serializeSave } from '../engine/game/saveFormat.ts';
-import type { GameState, UserTeamState } from '../engine/game/state.ts';
+import type { GameState, TrainingSetting, UserTeamState } from '../engine/game/state.ts';
 import type { CompetitionId, Player } from '../engine/types.ts';
 import type { SaveListItem, SaveStorage, Slot } from './persistence.ts';
 
@@ -44,6 +47,10 @@ export interface AppState {
   skipToEnd(): Promise<void>;
   /** Changes the manager's team (tactics screen). */
   editUser(fn: (user: UserTeamState, squad: Player[]) => void): void;
+  startNextSeason(): Promise<void>;
+  movePlayer(playerId: string, target: SquadTarget): void;
+  releaseFromAcademy(playerId: string): void;
+  setTraining(training: TrainingSetting): void;
   saveTo(slot: Slot): Promise<void>;
   loadFrom(slot: Slot): Promise<void>;
   refreshSaves(): Promise<void>;
@@ -125,7 +132,7 @@ export function createAppStore(deps: StoreDeps): StoreApi<AppState> {
         const days = advanceToNextUserMatch(game, data);
         bump();
         const last = days.at(-1);
-        if (last?.userReport && game.user) get().navigate({ name: 'match', reportIndex: game.user.reports.length - 1 });
+        if (last?.userReport && game.user) get().navigate({ name: 'match', reportIndex: game.user.matches.length - 1 });
         else if (game.finished) get().navigate({ name: 'seasonEnd' });
         await autosave();
       },
@@ -150,6 +157,39 @@ export function createAppStore(deps: StoreDeps): StoreApi<AppState> {
         bump();
         get().navigate({ name: 'seasonEnd' });
         await autosave();
+      },
+      async startNextSeason() {
+        const { game, data } = get();
+        if (!game || !game.finished) return;
+        startNewSeason(game, data);
+        bump();
+        set({ screen: { name: 'home' }, history: [] });
+        await autosave();
+      },
+      movePlayer(playerId, target) {
+        const { game, data } = get();
+        if (!game?.user || !game.userClubId) return;
+        const p = runtimeOf(game).byId.get(playerId);
+        if (!p) return;
+        const error = moveUserPlayer(p, target, game.userClubId, game.user, data, game.membership, exactAge(p.birthDate, game.date));
+        if (error) return set({ message: { kind: 'warn', text: error } });
+        invalidateRuntime(game);
+        bump();
+      },
+      releaseFromAcademy(playerId) {
+        const { game } = get();
+        if (!game) return;
+        const p = runtimeOf(game).byId.get(playerId);
+        if (!p?.academy || p.clubId !== game.userClubId) return;
+        game.players = game.players.filter((x) => x.id !== playerId);
+        invalidateRuntime(game);
+        bump();
+      },
+      setTraining(training) {
+        const { game } = get();
+        if (!game?.user) return;
+        game.user.training = training;
+        bump();
       },
       editUser(fn) {
         const { game } = get();

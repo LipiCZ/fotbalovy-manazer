@@ -57,13 +57,15 @@ describe('kalendář', () => {
 describe('herní smyčka', () => {
   it('Pokračovat odehraje dny až po zápas mého týmu', () => {
     const g = fresh();
-    const next = nextUserMatch(g)!;
+    const next = nextUserMatch(g, data)!;
+    expect(next.label).toBe('Chance Liga, 1. kolo');
     const days = advanceToNextUserMatch(g, data);
     const report = days.at(-1)!.userReport!;
     expect([report.homeId, report.awayId]).toContain(g.userClubId);
     expect(days.at(-1)!.date).toBe(next.date);
-    expect(g.user!.reports).toHaveLength(1);
-    expect(nextUserMatch(g)!.round).toBe(next.round + 1);
+    expect(g.user!.matches).toHaveLength(1);
+    expect(g.user!.matches[0]!.label).toBe('Chance Liga, 1. kolo');
+    expect(nextUserMatch(g, data)!.round).toBe(2);
   });
 
   it('stejný seed = stejný průběh', () => {
@@ -100,16 +102,23 @@ describe('herní smyčka', () => {
     expect(g.finished).toBe(true);
     expect(nextMatchDate(g)).toBeNull();
     expect(advanceDay(g, data)).toBeNull();
-    expect(g.user!.reports).toHaveLength(30);
+    const league = g.user!.matches.filter((m) => m.label.startsWith('Chance Liga'));
+    expect(league).toHaveLength(30);
     for (const c of g.competitions) {
       const n = c.clubIds.length;
       expect(c.results).toHaveLength(n * (n - 1));
-      const goals = c.results.reduce((s, r) => s + r.homeGoals + r.awayGoals, 0);
-      const clubs = new Set(c.clubIds);
-      const scored = g.players.filter((p) => clubs.has(p.clubId)).reduce((s, p) => s + (g.playerStats[p.id]?.goals ?? 0), 0);
-      expect(scored, c.id).toBe(goals);
       expect(tableFor(g, c.id, data).every((r) => r.played === 2 * (n - 1))).toBe(true);
     }
+    // Goals of all players = goals of all matches (league, post-season, cup).
+    const all = [
+      ...g.competitions.flatMap((c) => c.results),
+      ...g.stages.flatMap((s) => s.results),
+      ...(g.cup?.rounds.flatMap((r) => r.ties.flatMap((t) => (t.result ? [t.result] : []))) ?? []),
+    ];
+    const goals = all.reduce((s, r) => s + r.homeGoals + r.awayGoals, 0);
+    const scored = Object.values(g.playerStats).reduce((s, x) => s + x.goals, 0);
+    // Players who retired/left are no longer in the list, but stats are kept by id.
+    expect(scored).toBe(goals);
     const top = topScorers(g, 'chance-liga', 5);
     expect(top[0]!.stats.goals).toBeGreaterThanOrEqual(top[4]!.stats.goals);
   });

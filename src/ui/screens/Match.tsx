@@ -1,4 +1,4 @@
-import { competitionOfClub } from '../../engine/game/advance.ts';
+import type { GameState, MatchSummary } from '../../engine/game/state.ts';
 import type { MatchEvent, MatchReport, Side } from '../../engine/match/types.ts';
 import { POSITION_LABEL_CS } from '../../engine/types.ts';
 import { getAppStore, useGame } from '../../state/store.ts';
@@ -34,16 +34,24 @@ const EVENT_TEXT: Partial<Record<MatchEvent['type'], string>> = {
   bigChance: 'velká šance',
 };
 
+/** Other results of the same day in the same competition, stage or cup round. */
+function sameRound(game: GameState, date: string, homeId: string): MatchSummary[] {
+  const containers: MatchSummary[][] = [
+    ...game.competitions.map((c) => c.results),
+    ...game.stages.map((s) => s.results),
+    ...(game.cup?.rounds.map((r) => r.ties.flatMap((t) => (t.result ? [t.result] : []))) ?? []),
+  ];
+  const list = containers.find((c) => c.some((r) => r.date === date && r.homeId === homeId)) ?? [];
+  return list.filter((r) => r.date === date && r.homeId !== homeId);
+}
+
 export function MatchScreen({ reportIndex }: { reportIndex: number }) {
   const { game, data } = useGame();
   const store = getAppStore().getState();
-  const reports = game.user?.reports ?? [];
-  const report: MatchReport | undefined = reports[reportIndex];
-  if (!report) return <p>Zápas nenalezen.</p>;
-  const userClubId = game.userClubId as string;
-  const progress = competitionOfClub(game, userClubId);
-  const competition = data.competitions.find((c) => c.id === progress?.id);
-  const summary = (progress?.results ?? []).filter((r) => r.homeId === userClubId || r.awayId === userClubId)[reportIndex];
+  const matches = game.user?.matches ?? [];
+  const match = matches[reportIndex];
+  const report: MatchReport | undefined = match?.report;
+  if (!match || !report) return <p>Zápas nenalezen.</p>;
   const home = clubOf(data, report.homeId);
   const away = clubOf(data, report.awayId);
   const name = (id?: string) => {
@@ -51,7 +59,7 @@ export function MatchScreen({ reportIndex }: { reportIndex: number }) {
     return p ? shortName(p) : '?';
   };
   const keyEvents = (side: Side) => report.events.filter((e) => e.side === side && ['goal', 'penaltyGoal', 'red', 'secondYellow'].includes(e.type));
-  const roundResults = (progress?.results ?? []).filter((r) => summary && r.round === summary.round && r !== summary);
+  const roundResults = sameRound(game, match.date, report.homeId);
   const s = report.stats;
 
   const ratingsTable = (side: Side) => {
@@ -108,7 +116,19 @@ export function MatchScreen({ reportIndex }: { reportIndex: number }) {
           <div className="team away">{away?.name}</div>
         </div>
         <div className="venue">
-          {home?.city} · {competition?.name}, {summary?.round}. kolo · {summary ? formatDate(summary.date) : ''}
+          {report.penalties && (
+            <div>
+              <strong>
+                {report.extraTime ? 'po prodloužení, ' : ''}penalty {report.penalties.join(':')}
+              </strong>
+            </div>
+          )}
+          {!report.penalties && report.extraTime && (
+            <div>
+              <strong>po prodloužení</strong>
+            </div>
+          )}
+          {home?.city} · {match.label} · {formatDate(match.date)}
         </div>
         <div className="scorers">
           {(['home', 'away'] as const).map((side) => (
@@ -181,7 +201,7 @@ export function MatchScreen({ reportIndex }: { reportIndex: number }) {
             <button disabled={reportIndex === 0} onClick={() => store.navigate({ name: 'match', reportIndex: reportIndex - 1 })}>
               ← předchozí zápas
             </button>
-            <button disabled={reportIndex >= reports.length - 1} onClick={() => store.navigate({ name: 'match', reportIndex: reportIndex + 1 })}>
+            <button disabled={reportIndex >= matches.length - 1} onClick={() => store.navigate({ name: 'match', reportIndex: reportIndex + 1 })}>
               další zápas →
             </button>
           </span>
@@ -195,6 +215,7 @@ export function MatchScreen({ reportIndex }: { reportIndex: number }) {
                   <strong>
                     {r.homeGoals}:{r.awayGoals}
                   </strong>
+                  {r.penalties ? <span className="muted"> pen. {r.penalties.join(':')}</span> : r.extraTime ? <span className="muted"> pp.</span> : null}
                 </td>
                 <td>{clubOf(data, r.awayId)?.shortName}</td>
                 <td className="muted">
