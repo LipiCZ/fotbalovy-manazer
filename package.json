@@ -13,6 +13,7 @@
     "match": "tsx scripts/simulate-match.ts",
     "calibrate": "tsx scripts/calibrate.ts",
     "e2e": "tsx scripts/e2e.ts",
+    "e2e:pages": "tsx scripts/e2e-pages.ts",
     "calibrate:world": "tsx scripts/calibrate-world.ts"
   },
   "repository": {

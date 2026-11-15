@@ -93,9 +93,12 @@ npm run match -- --home slavia-praha --away sparta-praha --seed 1   # jeden záp
 npm run calibrate -- --seasons 1000   # kalibrace proti cílům; cíle z designu musí projít
 npm run calibrate:world   # stabilita světa: 8 světů × 10 sezón (prvních 5 přísně, dál jen upozornění)
 npm run e2e          # Playwright: nová hra → zápasy → uložení → reload → načtení → 5 sezón (screenshoty v out/screenshots)
+npm run build && npm run e2e:pages   # sestavená hra pod cestou /fotbalovy-manazer/ (jako na GitHub Pages): data, IndexedDB, načtení
 ```
 
 Lokálně před prvním `npm run e2e`: `npx playwright install chromium`.
+
+Nasazení: každý push do `main` spustí `.github/workflows/deploy.yml` (testy, build, kontrola pod cestou Pages, nasazení). Hra běží na https://lipicz.github.io/fotbalovy-manazer/ (base cesta ve `vite.config.ts`).
 
 Po změně čísel v `balance.json → match` vždy pusť `npm run calibrate` (stačí 100 sezón, na konci fáze 1 000). Po změně vývoje, akademie nebo kádrů pusť `npm run calibrate:world`.
 
