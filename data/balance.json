@@ -974,5 +974,133 @@
       "eliteFrom": 75,
       "experiencedFrom": 60
     }
+  },
+  "club": {
+    "_note": "Fáze 7 (design, sekce 9, 13 a 14): stadion, město, investor, vztahy, morálka, události. Ceny stadionu podle tabulky v designu; ostatní čísla jsou NÁVRH (malé dopady, design: ‚čísla mění jen málo‘).",
+    "stadium": {
+      "_note": "Úrovně 1–5 (design, sekce 9). Kapacita je minimum, které úroveň dává; větší stadion zůstane větší. Doba stavby je návrh.",
+      "levels": [
+        {
+          "label": "okresní hřiště",
+          "capacity": 500,
+          "costToNext": 5000000,
+          "months": 3
+        },
+        {
+          "label": "stadion ČFL/MSFL",
+          "capacity": 1500,
+          "costToNext": 25000000,
+          "months": 6
+        },
+        {
+          "label": "stadion 2. ligy",
+          "capacity": 3000,
+          "costToNext": 150000000,
+          "months": 12
+        },
+        {
+          "label": "prvoligový stadion",
+          "capacity": 5000,
+          "costToNext": 400000000,
+          "months": 18
+        },
+        {
+          "label": "evropský stadion",
+          "capacity": 10000,
+          "costToNext": 0,
+          "months": 0
+        }
+      ],
+      "requiredByLevel": {
+        "1": 4,
+        "2": 3,
+        "3": 2
+      },
+      "rent": {
+        "_note": "Po postupu bez potřebné úrovně jedna sezóna v pronajatém stadionu.",
+        "monthlyShareOfRevenue": 0.02,
+        "attendanceFactor": 0.75,
+        "fansPenalty": 5
+      },
+      "licencePointsIfNotStarted": 3
+    },
+    "city": {
+      "_note": "Podíl města na stavbě = (vztah − shareFrom) × sharePerPoint, nejvýš maxShare. Podmínka dohody se vyhodnotí na konci sezóny.",
+      "shareFrom": 30,
+      "sharePerPoint": 0.012,
+      "maxShare": 0.6,
+      "metBonus": 10,
+      "failedPenalty": 25,
+      "failedRepayShare": 0.5,
+      "academyTarget": 10
+    },
+    "investor": {
+      "_note": "Nabídka investora po postupu klubu (spolek → akciová společnost).",
+      "depositShareOfRevenue": 0.8,
+      "targetTighter": 1,
+      "seasons": 2,
+      "declineFans": 3
+    },
+    "relations": {
+      "start": {
+        "fans": 50,
+        "board": 60,
+        "city": 50,
+        "squad": 55
+      },
+      "driftPerMonth": 0.05,
+      "match": {
+        "W": {
+          "fans": 1.5,
+          "squad": 2
+        },
+        "D": {
+          "fans": 0,
+          "squad": 0
+        },
+        "L": {
+          "fans": -1.5,
+          "squad": -2
+        }
+      },
+      "bigResultGoals": 3,
+      "derbyFactor": 2,
+      "ticketTooExpensive": 1.3,
+      "ticketCheap": 0.8,
+      "academyCityBonus": 1,
+      "unhappyPlayer": {
+        "minForm": 7.0,
+        "maxMinutesShare": 0.3,
+        "squad": -2
+      },
+      "soldFavourite": -3
+    },
+    "morale": {
+      "_note": "Nálada kabiny 50 = bez vlivu; 100 = síla týmu +maxEffect, 0 = −maxEffect (jen tým hráče).",
+      "maxEffect": 0.03
+    },
+    "fans": {
+      "_note": "Vztah fanoušků 50 = bez vlivu; návštěva ± attendanceEffect.",
+      "attendanceEffect": 0.1
+    },
+    "events": {
+      "_note": "Pravděpodobnost náhodné události za měsíc podle nastavení; v nižších soutěžích častější. Peněžní dopady událostí jsou pro 2. ligu, ostatní úrovně násobí moneyScaleByLevel.",
+      "chance": {
+        "vypnuto": 0,
+        "občas": 0.4,
+        "často": 0.85
+      },
+      "lowerLeagueFactor": 1.3,
+      "moneyScaleByLevel": {
+        "1": 2.5,
+        "2": 1,
+        "3": 0.4
+      }
+    },
+    "press": {
+      "lossStreak": 3,
+      "winStreak": 4
+    },
+    "socialPerMatch": 2
   }
 }

@@ -14,7 +14,7 @@ Ukládání: IndexedDB (vlastní tenká vrstva) + export/import JSON. Grafy: Rec
 ## Architektura
 
 ```
-data/            JSON data: soutěže, kluby, kraje, jména, taktika, pyramid.json (nadstavba, baráž, postupy, pohár), balance.json (laditelné konstanty)
+data/            JSON data: soutěže, kluby, kraje, jména, taktika, flavor.json (titulky, sociální sítě, tiskovky, události), pyramid.json (nadstavba, baráž, postupy, pohár), balance.json (laditelné konstanty)
 docs/design.md   designový dokument
 src/engine/      čistá herní logika – žádný React, DOM ani prohlížečové API; jde spouštět v Node
   players/       generátor hráčů, výpočet TS/FS/CEL z atributů
@@ -58,6 +58,7 @@ Směr závislostí: `ui → state → engine → data`. Engine nikdy neimportuje
 - Peníze: každý pohyb jde přes `book()` (finance.ts) – sezónní součty po kategoriích; u klubu hráče i seznam transakcí. Částky v Kč.
 - Volní hráči mají `clubId = FREE_AGENT` ('volny-hrac'), bez smlouvy. Hostovaný hráč má `clubId` hostitele a `loan.fromClubId` mateřského klubu (`ownerOf`).
 - Trh: `game/market.ts` (hodnota, nabídky, smlouvy, volní hráči, AI trh v oknech – tržní dny v `passTime`), skauting `game/scouting.ts`. Hráč manažera vidí CEL/POT cizích hráčů jen jako odhad (`estimateOf`).
+- Klub hráče mimo kádr (stadion, vztahy, rozhodnutí, média) je v `GameState.club` (`game/club.ts`); AI kluby ho nemají. Rozhodnutí čekají v `club.decisions`.
 - Kluby mají `id` jako slug (`slavia-praha`, `slavia-praha-b`). B/C týmy mají `parentClubId`.
 - Pozice: kódy `GK CB LB RB DM CM AM LM RM LW RW ST`, v UI česky (BR SO LO PO DZ SZ OZ LZ PZ LK PK ÚT).
 
@@ -108,4 +109,5 @@ Po změně čísel v `balance.json → match` vždy pusť `npm run calibrate` (s
 | 4b | doplňky z CSM: konce kariér podle pozic, typy zranění a návrat, únava podle věku, varování na 3 žluté, kalibrace penalt | hotovo |
 | 5 | ekonomika (finance všech klubů, smlouvy, vstupné, výkazy, úvěr, licence), cíle a hodnocení vedení | hotovo |
 | 6 | přestupy a hostování, smlouvy a prodlužování, volní hráči, živý trh AI, skauting a odhady CEL/POT | hotovo |
-| 7–8 | viz `docs/design.md`, sekce 16 | – |
+| 7 | stadion a město, investor, vztahy (fanoušci, vedení, město, kabina), kapitán, média, tiskovky, sociální sítě, události, ohlášení poslední sezóny | hotovo |
+| 8 | viz `docs/design.md`, sekce 16 | – |

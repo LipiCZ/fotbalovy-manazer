@@ -13,6 +13,7 @@ const NAV: { label: string; screen: Screen }[] = [
   { label: 'Soutěže', screen: { name: 'competitions' } },
   { label: 'Přestupy', screen: { name: 'transfers' } },
   { label: 'Skauting', screen: { name: 'scouting' } },
+  { label: 'Klub', screen: { name: 'club' } },
   { label: 'Finance', screen: { name: 'finance' } },
 ];
 

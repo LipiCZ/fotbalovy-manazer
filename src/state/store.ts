@@ -26,7 +26,8 @@ export type Screen =
   | { name: 'seasonEnd' }
   | { name: 'finance' }
   | { name: 'transfers'; tab?: TransfersTab }
-  | { name: 'scouting' };
+  | { name: 'scouting' }
+  | { name: 'club' };
 
 export type TransfersTab = 'search' | 'offers' | 'free' | 'mine';
 

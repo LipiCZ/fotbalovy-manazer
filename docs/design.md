@@ -322,6 +322,14 @@ Stadion klub nezruinuje, ale dává jasný cíl: kdo chce do 1. ligy z okresníh
 
 **Dohoda s městem:** funguje jako mise s podmínkami, např. „rekonstrukce tribuny za 40 mil. Kč, pokud klub do dvou sezón vyhraje ČFL a akademie bude mít aspoň 60 dětí z města“. Ochota města závisí na vztahu, který roste s výsledky a prací s mládeží. Spory jsou extrémní výjimka.
 
+**Doplněno ve fázi 7 (implementace, návrh – `balance.json → club`):**
+
+- Úroveň stadionu klubu hráče se na začátku odvodí z kapacity (aspoň úroveň, kterou vyžaduje soutěž: 1. liga 4, 2. liga 3, 3. liga 2). Ceny podle tabulky; doba stavby 3 / 6 / 12 / 18 měsíců (návrh). Po dokončení má stadion aspoň kapacitu úrovně.
+- Pronajatý stadion: nájem 2 % očekávaných příjmů měsíčně, návštěva ×0,75, fanoušci −5. Když na začátku další sezóny pořád chybí úroveň a stavba neběží, licence stojí 3 body.
+- Dohoda s městem: podíl města = (vztah s městem − 30) × 1,2 %, nejvýš 60 %. Podmínka (náhodně jedna): skončit letos v horní polovině tabulky, letos postoupit, nebo mít v akademii aspoň 10 hráčů. Splněno: město +10. Nesplněno: město −25 a vrácení poloviny dosud zaplacené dotace.
+- Investor: po postupu klubu, který je spolek. Vloží 80 % ročních očekávaných příjmů, klub se stane akciovou společností a investor 2 sezóny chce umístění o 1 místo lepší než cíl vedení.
+- Majitele typu „město / podnikatel / bohatý majitel“ zatím hra nerozlišuje; AI kluby stadion nemodelují.
+
 **Účetně:** stavba se aktivuje jako dlouhodobý hmotný majetek a odpisuje. Výsledovku zaří postupně, cash flow hned. Přesné zacházení podle českých předpisů a IFRS (včetně dotace od města) doplníme v části o ekonomice.
 
 ## 10. Herní režimy
@@ -530,6 +538,16 @@ Tahle vrstva dává hře atmosféru a zpětnou vazbu, ale čísla mění jen má
 **Sociální sítě:** vtipný feed příspěvků fanoušků, který ukazuje náladu. Bez dopadu na čísla.
 
 **Náhodné události:** nejvýš 1–2 měsíčně, častější v nižších soutěžích, malý dopad. Příklady: reklama pro místní uzenářství, rvačka maskotů, starosta v přípravném zápase, zapadlá rolba. Frekvence jde nastavit (vypnuto, občas, často). Sponzoři v nižších soutěžích jsou lokální (pneuservis, hospoda, stavebniny).
+
+**Doplněno ve fázi 7 (implementace, návrh – `balance.json → club`, texty `data/flavor.json`):**
+
+- Vztahy 0–100 (výchozí fanoušci 50, vedení 60, město 50, kabina 55), mimo vedení se každý měsíc vracejí o 5 % k výchozí hodnotě. Výhra fanoušci +1,5 a kabina +2, prohra opačně, derby (stejné město) u fanoušků dvojnásob. Vstupné nad 130 % referenční ceny fanoušci −1 měsíčně, pod 80 % +1. Akademie s aspoň 10 hráči: město +1 měsíčně. Hráč ve formě (7+) s méně než 30 % minut: kabina −2 a zpráva. Prodej oblíbence (3 nejvíc nasazení): fanoušci −3.
+- Vedení ukazuje průběžné hodnocení sezóny (po 3 zápasech): 55 + 15 × skóre stupně, −15 při záporném účtu.
+- Vliv: fanoušci návštěva ±10 %, kabina síla týmu ±3 % (jen tým hráče), město podíl na stavbě. Kapitán s vůdcovstvím 70+ tlumí propady nálady kabiny o 25 %; tlumení propadů formy zatím není (forma je průměr známek).
+- Média: po každém zápase hráče titulek podle úrovně soutěže (celostátní / krajská / místní). Tiskovky po 3 porážkách nebo 4 výhrách v řadě, po postupu a sestupu: 3 tóny s malým dopadem (útočný tón může stát pokutu).
+- Sociální sítě: 2 příspěvky fanoušků po zápase, bez dopadu.
+- Náhodné události: nastavení vypnuto / občas (40 % za měsíc) / často (85 %), ve 3. lize ×1,3; některé s volbou. Peníze událostí jsou pro 2. ligu, 1. liga ×2,5, 3. liga ×0,4.
+- Ohlášení poslední sezóny: v lednu hráč, jehož šance na konec kariéry je aspoň 50 %; přemluvit jde s šancí 15 % (zůstane ještě sezónu), jinak po sezóně jistě končí.
 
 **Ceny sezóny:** gól sezóny, objev sezóny, nejlepší a nejhorší přestup, nejzbytečnější žlutá karta, hláška sezóny.
 

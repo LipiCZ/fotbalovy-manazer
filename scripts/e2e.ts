@@ -178,6 +178,16 @@ try {
     await shot('19-skauting');
   });
 
+  await check('klub: vztahy, stadion, média', async () => {
+    await page.getByRole('navigation').getByRole('button', { name: 'Klub' }).click();
+    await page.getByRole('heading', { name: 'Vztahy' }).waitFor();
+    await page.getByRole('heading', { name: 'Stadion' }).waitFor();
+    await page.getByLabel('náhodné události').selectOption('často');
+    const decision = page.getByTestId('club-decisions').getByRole('button').first();
+    if (await decision.count()) await decision.click();
+    await shot('20-klub');
+  });
+
   for (const year of [2027, 2028, 2029, 2030]) {
     await check(`sezóna ${year}/${String(year + 1).slice(2)} až do konce`, async () => {
       await page.getByRole('button', { name: 'Přeskočit na konec sezóny' }).click();

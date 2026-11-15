@@ -44,6 +44,7 @@ import {
 import { initialUserTeam, prepareUserSheet, userStrength } from './userTeam.ts';
 import { aiMarketTick, amortizeRegistrations, emptyMarket, expireOffers, freeAgentTick, marketDays, payDueInstallments } from './market.ts';
 import { emptyScouting, refreshCandidates, scoutingTick } from './scouting.ts';
+import { attendanceFactor, clubAfterUserMatch, clubMonthTick, initClub, moraleBonus } from './club.ts';
 
 const MAX_NEWS = 80;
 
@@ -176,6 +177,7 @@ export function createGameState(world: World, opts: NewGameOptions): GameState {
     board: null,
     market: emptyMarket(),
     scouting: emptyScouting(),
+    club: null,
   };
   initFinances(state, data, seasonRngOf(state).fork('contracts'));
   freeAgentTick(state, data, start, seasonRngOf(state).fork('free-agents'), data.balance.transfers.freeAgents.poolTarget);
@@ -185,6 +187,7 @@ export function createGameState(world: World, opts: NewGameOptions): GameState {
   if (opts.userClubId !== null) {
     state.user = initialUserTeam(squadOf(state, opts.userClubId), data);
     startBoardSeason(state, data);
+    state.club = initClub(state, data);
   }
   return state;
 }
@@ -450,6 +453,7 @@ function monthTick(state: GameState, data: GameData, date: string, news: NewsIte
   amortizeRegistrations(state, data, date);
   payDueInstallments(state, date);
   scoutingTick(state, data, date, rng.fork('scouting'), news);
+  clubMonthTick(state, data, date, rng.fork('club'), news);
   freeAgentTick(state, data, date, rng.fork('free-agents'));
   expireOffers(state, date);
   news.push(...developmentTick(state, data, { date, leagueCelOf: leagueCelLookup(state, data), rng: rng.fork('dev') }));
@@ -590,8 +594,10 @@ function playPlanned(state: GameState, data: GameData, m: PlannedMatch, news: Ne
   const awaySheet = sheetFor(m.awayId, awaySquad, awaySel, isUserHome ? userStr : homeSel.strength, isUserAway);
 
   const suspended = [...homeSquad, ...awaySquad].filter((p) => p.state.suspensionMatches > 0);
+  const bonus = state.club && (isUserHome || isUserAway) ? moraleBonus(state, data) : 0;
   const report = playMatch(homeSheet, awaySheet, {
     level: m.level,
+    ...(bonus !== 0 ? { teamBonus: isUserHome ? { home: bonus } : { away: bonus } } : {}),
     balance,
     formations: data.tactics.formations,
     rng: rng.fork(m.rngKey),
@@ -605,7 +611,12 @@ function playPlanned(state: GameState, data: GameData, m: PlannedMatch, news: Ne
   const tablePosition = leagueProgress ? regularTable(state, leagueProgress.id, data).findIndex((r) => r.clubId === m.homeId) + 1 : null;
   const gate = m.neutral
     ? { attendance: 0, capacity: 0 }
-    : matchdayFinance(state, data, m.homeId, m.date, { tablePosition, teams: leagueProgress?.clubIds.length ?? 16, rng: rng.fork(`gate:${m.rngKey}`) });
+    : matchdayFinance(state, data, m.homeId, m.date, {
+        tablePosition,
+        teams: leagueProgress?.clubIds.length ?? 16,
+        rng: rng.fork(`gate:${m.rngKey}`),
+        ...(isUserHome ? { factor: attendanceFactor(state, data) } : {}),
+      });
   const outcome = (own: number, opp: number) => (own > opp ? 'W' : own < opp ? 'L' : 'D') as 'W' | 'D' | 'L';
   matchBonus(state, data, m.homeId, outcome(report.homeGoals, report.awayGoals), m.date);
   matchBonus(state, data, m.awayId, outcome(report.awayGoals, report.homeGoals), m.date);
@@ -616,6 +627,9 @@ function playPlanned(state: GameState, data: GameData, m: PlannedMatch, news: Ne
   if ((isUserHome || isUserAway) && user) {
     user.matches.push({ date: m.date, label: m.label, report });
     news.push(...userMatchNews(state, data, report, before, m.date));
+    const scorer = report.events.find((e) => e.type === 'goal' && e.side === (isUserHome ? 'home' : 'away'));
+    const scorerName = scorer && 'playerId' in scorer ? rt.byId.get(scorer.playerId as string)?.lastName : undefined;
+    clubAfterUserMatch(state, data, { date: m.date, homeId: m.homeId, awayId: m.awayId, homeGoals: report.homeGoals, awayGoals: report.awayGoals, label: m.label, ...(scorerName ? { scorerName } : {}) }, news);
   }
   return report;
 }

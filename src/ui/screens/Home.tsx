@@ -22,6 +22,8 @@ function Decisions() {
   if (mine.length > 0) items.push({ text: `${mine.length}× rozjednaný přestup čeká na tebe (protinabídka nebo osobní podmínky)`, label: 'Nabídky', go: () => store.navigate({ name: 'transfers', tab: 'offers' }) });
   if (pending.length > 0) items.push({ text: `${pending.length}× dohodnutý příchod čeká na otevření okna`, label: 'Nabídky', go: () => store.navigate({ name: 'transfers', tab: 'offers' }) });
   if (expiring.length > 0) items.push({ text: `${expiring.length} hráčům končí 30. 6. smlouva`, label: 'Smlouvy', go: () => store.navigate({ name: 'transfers', tab: 'mine' }) });
+  const club = game.club?.decisions.length ?? 0;
+  if (club > 0) items.push({ text: `${club}× rozhodnutí klubu (${game.club!.decisions.map((d) => d.title).join(', ')})`, label: 'Klub', go: () => store.navigate({ name: 'club' }) });
   if (tips.length > 0) items.push({ text: `${tips.length}× tip skauta na talent`, label: 'Skauting', go: () => store.navigate({ name: 'scouting' }) });
   if (items.length === 0 && !windowOn(game.date, data)) return null;
   return (
@@ -48,7 +50,7 @@ function Decisions() {
   );
 }
 
-const NEWS_ICON = { injury: '✚', suspension: '🟥', lineup: '🔁', recovered: '✅', academy: '🎓', development: '📈', season: '📅', info: 'ℹ️', transfer: '⇄', contract: '✍', scouting: '🔍' } as const;
+const NEWS_ICON = { injury: '✚', suspension: '🟥', lineup: '🔁', recovered: '✅', academy: '🎓', development: '📈', season: '📅', info: 'ℹ️', transfer: '⇄', contract: '✍', scouting: '🔍', media: '📰' } as const;
 
 const TRAINING: { id: TrainingSetting; label: string; help: string }[] = [
   { id: 'assistant', label: 'asistent', help: 'Asistent volí podle programu: tvrdě, když je do zápasu týden, lehce těsně před zápasem.' },

@@ -13,6 +13,7 @@ import { addDays, daysBetween } from './calendar.ts';
 import { averageRecent, exactAge, idAllocator } from './development.ts';
 import { book, levelOf, payingClub, wageFor } from './finance.ts';
 import { selectionFor } from './selection.ts';
+import { isFavourite, relation } from './club.ts';
 import type { GameState, Installment, MarketState, NewsItem, Offer } from './state.ts';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -310,6 +311,8 @@ export function executeTransfer(state: GameState, data: GameData, offer: Offer, 
     scheduleFee(state, data, offer.fee, offer.installments, buyer, recipients, date, label);
   }
   if (p.loan) delete p.loan;
+  // Selling a favourite upsets the fans a little (phase 7).
+  if (isUserOrg(state, data, offer.sellerId) && isFavourite(state, p)) relation(state, data, 'fans', data.balance.club.relations.soldFavourite);
   writeOffRegistration(state, data, p, date, `odpis zůstatku smlouvy: ${nameOf(p)}`);
   // New contract and the capitalised cost (fee + agent + signing bonus).
   const fromLevel = levelOf(state, data, offer.sellerId === FREE_AGENT ? offer.buyerId : offer.sellerId);

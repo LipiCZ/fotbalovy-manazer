@@ -285,7 +285,7 @@ export function matchdayFinance(
   data: GameData,
   homeId: string,
   date: string,
-  ctx: { tablePosition: number | null; teams: number; neutral?: boolean; rng: Rng },
+  ctx: { tablePosition: number | null; teams: number; neutral?: boolean; rng: Rng; factor?: number },
 ): MatchdayResult {
   const e = data.balance.economy;
   const f = state.finances[homeId];
@@ -300,6 +300,7 @@ export function matchdayFinance(
     baseAttendance(level, size, reserve, data.balance) *
     (1 + e.attendance.positionEffect * position) *
     priceFactor *
+    (ctx.factor ?? 1) *
     (1 + ctx.rng.normal(0, e.attendance.noise));
   const attendance = Math.round(clamp(demand, 0, f.capacity));
   const payer = payingClub(data, homeId);

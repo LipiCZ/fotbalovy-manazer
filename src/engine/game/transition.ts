@@ -22,6 +22,7 @@ import { barrageOutcomes, regularTable, seasonRngOf } from './postseason.ts';
 import { allowedGroups, canPlayIn, levelOfCompetition, membersOf, thirdLevelGroups, type Membership } from './pyramid.ts';
 import { aiMarketTick, dropFromUserLineup, endLoans, expireContracts, isUserOrg, ownerOf, toFreeAgent, writeOffRegistration } from './market.ts';
 import { exPlayerScoutOffer } from './scouting.ts';
+import { clubSeasonEnd, clubSeasonStart, lastSeasonOutcome } from './club.ts';
 import { emptyStats, type GameState, type Movement, type NewsItem, type SeasonRecord } from './state.ts';
 
 const nameOf = (p: Player) => `${p.firstName} ${p.lastName}`;
@@ -175,6 +176,9 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
     if (f) record.finance = { season: { ...f.season }, cashEnd: f.cash };
   }
 
+  // The manager's club: city deal, investor (before the new membership).
+  clubSeasonEnd(state, data, movements.find((m) => m.clubId === state.userClubId), news);
+
   // Career archive, exceptional seasons, retirements.
   const pr = balance.development.potentialRaise;
   const retired = new Set<string>();
@@ -224,7 +228,11 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
       balance,
     );
     const prng = rng.fork(p.id);
-    if (chance > 0 && prng.chance(chance)) {
+    // Announced last season (phase 7): retires for sure; persuaded players stay one more season.
+    const announced = lastSeasonOutcome(p);
+    delete p.lastSeason;
+    if (announced === 'stay') continue;
+    if (announced === 'retire' || (chance > 0 && prng.chance(chance))) {
       const user = isUserOrg(state, data, ownerOf(p));
       // Instead of retiring, some players go on in a lower competition (CSM addition, phase 6).
       const dd = balance.retirement.dropDownInstead;
@@ -309,6 +317,7 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
   state.competitions = buildCompetitions(state, data);
   startCup(state, data);
   startBoardSeason(state, data);
+  clubSeasonStart(state, data, movements.find((m) => m.clubId === state.userClubId), news);
   state.finished = false;
   // The summer window opens.
   aiMarketTick(state, data, newStart, rng.fork('market'), news);

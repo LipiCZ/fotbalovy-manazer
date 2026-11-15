@@ -1,0 +1,57 @@
+{
+  "_note": "Texty pro média, sociální sítě, tiskovky a náhodné události (design, sekce 14). Vlastní herní texty, žádná reálná média ani osoby. {club} = můj klub, {opp} = soupeř, {score} = výsledek, {city} = město klubu, {player} = hráč.",
+  "outlets": {
+    "1": ["Celostátní sportovní deník", "Sportovní web", "Fotbalový magazín"],
+    "2": ["Krajský sport", "Regionální deník", "Fotbal v kraji"],
+    "3": ["Zpravodaj {city}", "Okresní noviny", "Radniční list"]
+  },
+  "headlines": {
+    "bigWin": ["Demolice! {club} – {opp} {score}", "Kanonáda: {club} vyhrál nad soupeřem ({opp}) {score}", "Hosté odjíždějí s ostudou: {club} – {opp} {score}"],
+    "win": ["Tři body pro {club}: {club} – {opp} {score}", "{club} zvládl zápas, výsledek {score}", "Výhra {score}: {club} je spokojený"],
+    "draw": ["Remíza {score}: {club} a {opp} se o body podělili", "Bod pro každého: {club} – {opp} {score}", "{club} jen remizoval ({score})"],
+    "loss": ["{club} prohrál {score} ({opp})", "Body bere {opp}, {club} odchází s prázdnou", "Zklamání: {club} – {opp} {score}"],
+    "bigLoss": ["Debakl! {club} – {opp} {score}", "Černý den pro {club}: {score}", "Trenér pod palbou po výsledku {score}"]
+  },
+  "social": {
+    "authors": ["@kotel_{city}", "@pepa_z_tribuny", "@fotbalovy_tata", "@babicka_fanynka", "@uz_zase", "@ultras_bez_bot", "@statistik_amater", "@hospoda_u_hriste"],
+    "win": ["Takhle se to hraje! Hospoda dneska teče proudem 🍺", "{player} hraje jak z jiný planety", "Konečně! Tři body a tabulka vypadá líp 💪", "Kdo nebyl, ať lituje. Kotel řval 90 minut!", "Pivo na mě, chlapi, zasloužili jste si to"],
+    "draw": ["Bod je bod, ale čekal jsem víc 🤷", "Remíza jak vymalovaná. Aspoň že nepršelo", "Druhej poločas jsem prospal a nic jsem nezmeškal", "Trenére, kdy už pustíš mladý?"],
+    "loss": ["Já už na to nemám nervy 😩", "Klobása byla dneska nejlepší hráč na hřišti", "Rozhodčí zase viděl jinej zápas než my", "Prodejte už konečně {player}!", "Příště si vezmu deštník i na náladu"],
+    "neutral": ["Kdy už bude ta nová tribuna?", "Viděli jste nový dresy? Krása!", "Rolba zase stojí uprostřed parkoviště", "Kdo jede v sobotu autobusem? Ozvěte se"]
+  },
+  "press": {
+    "triggers": {
+      "lossStreak": "Po třech porážkách v řadě chtějí novináři vědět, co dál.",
+      "winStreak": "Tým vyhrál čtyřikrát za sebou. Média se ptají na ambice.",
+      "promotion": "Klub postoupil! Tisková konference k nové sezóně.",
+      "relegation": "Po sestupu svolali novináři tiskovku.",
+      "cupFinal": "Před finále poháru je sál plný kamer."
+    },
+    "options": [
+      {"label": "Klidně: „Jdeme zápas od zápasu.“", "effects": {"squad": 1, "board": 1}},
+      {"label": "Sebevědomě: „Na tohle máme.“", "effects": {"fans": 2, "squad": 2, "board": -1}},
+      {"label": "Útočně: „Kritiky přehlížíme, rozhodčí nás okrádají.“", "effects": {"fans": 3, "board": -2, "squad": 1, "cash": -20000, "cashNote": "pokuta od disciplinárky za výroky"}}
+    ]
+  },
+  "investors": ["Stavební skupina z kraje", "Místní podnikatel v dopravě", "Majitel řetězce pekáren", "Investiční skupina z Prahy", "Výrobce oken a dveří"],
+  "events": [
+    {"id": "uzenarstvi", "levels": [2, 3], "title": "Reklama pro uzenářství", "text": "Místní uzenářství nabízí peníze za to, že kapitán natočí reklamu s klobásou v ruce.",
+      "options": [{"label": "Bereme, klobása je klobása", "effects": {"cash": 150000, "cashNote": "reklama pro uzenářství", "fans": 1, "squad": -1}}, {"label": "Odmítnout, máme svou hrdost", "effects": {"squad": 1}}]},
+    {"id": "maskoti", "levels": [1, 2, 3], "title": "Rvačka maskotů", "text": "O poločase se náš maskot pustil do maskota hostí. Video obletělo internet.", "effects": {"cash": -30000, "cashNote": "pokuta za maskota", "fans": 2}},
+    {"id": "starosta", "levels": [2, 3], "title": "Starosta v přípravném zápase", "text": "Pan starosta si zahrál 20 minut za starou gardu a dal gól z penalty. Prý to byla penalta.", "effects": {"city": 4}},
+    {"id": "rolba", "levels": [3], "title": "Zapadlá rolba", "text": "Rolba zapadla v blátě za brankou. Vytáhnout ji musel traktor souseda.", "effects": {"cash": -15000, "cashNote": "oprava rolby"}},
+    {"id": "pyro", "levels": [1, 2], "title": "Pyrotechnika v kotli", "text": "Kotel odpálil světlice. Atmosféra skvělá, pokuta také.", "effects": {"cash": -150000, "cashNote": "pokuta za pyrotechniku", "fans": 2, "board": -1}},
+    {"id": "pneuservis", "levels": [2, 3], "title": "Nový sponzor: pneuservis", "text": "Pneuservis od kruhového objezdu chce logo na rukávu dresu.", "effects": {"cash": 200000, "cashNote": "sponzor pneuservis"}},
+    {"id": "hospoda", "levels": [3], "title": "Hospoda U Hřiště", "text": "Hospodský nabízí sud piva pro tým za každou domácí výhru. Vedení se to nelíbí.",
+      "options": [{"label": "Přijmout (kabina bude ráda)", "effects": {"squad": 3, "board": -2}}, {"label": "Poděkovat a odmítnout", "effects": {"board": 1}}]},
+    {"id": "skola", "levels": [1, 2, 3], "title": "Hráči na základní škole", "text": "Hráči vedli trénink pro děti z místní školy. Rodiče nadšení.", "effects": {"city": 3, "fans": 1}},
+    {"id": "zavlazovani", "levels": [1, 2, 3], "title": "Porucha zavlažování", "text": "Zavlažování pustilo vodu uprostřed tréninku. Trenér brankářů se doteď suší.", "effects": {"cash": -40000, "cashNote": "oprava zavlažování", "squad": 1}},
+    {"id": "dresy", "levels": [1, 2], "title": "Retro dresy", "text": "Fanshop vydal retro dresy podle sezóny, kdy klub naposledy něco vyhrál. Rozebrané za den.", "effects": {"cash": 300000, "cashNote": "prodej retro dresů", "fans": 2}},
+    {"id": "tribuna", "levels": [3], "title": "Brigáda na tribuně", "text": "Fanoušci o víkendu natřeli lavičky. Některé i dvakrát.", "effects": {"fans": 2, "city": 1}},
+    {"id": "pes", "levels": [2, 3], "title": "Pes na hřišti", "text": "Během zápasu vběhl na hřiště pes a nedal se chytit pět minut. Stal se maskotem měsíce.", "effects": {"fans": 2}},
+    {"id": "veterani", "levels": [1, 2, 3], "title": "Zápas veteránů", "text": "Legendy klubu sehrály exhibici. Vybrané peníze jdou na mládež.", "effects": {"cash": 60000, "cashNote": "exhibice veteránů", "fans": 1, "city": 2}},
+    {"id": "zpevak", "levels": [1, 2], "title": "Hymna od místní kapely", "text": "Místní kapela nabízí novou klubovou hymnu. Ukázka zní… zajímavě.",
+      "options": [{"label": "Hrát ji před zápasy", "effects": {"fans": -1, "city": 2}}, {"label": "Zůstat u staré hymny", "effects": {"fans": 1}}]},
+    {"id": "kalendar", "levels": [2, 3], "title": "Charitativní kalendář", "text": "Hráči nafotili charitativní kalendář. Brankář na obálce, prý kvůli rukavicím.", "effects": {"cash": 80000, "cashNote": "charitativní kalendář", "city": 2, "squad": 1}}
+  ]
+}

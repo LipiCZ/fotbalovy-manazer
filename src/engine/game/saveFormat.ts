@@ -11,6 +11,7 @@ import { startBoardSeason } from './board.ts';
 import { Rng } from '../rng.ts';
 import { emptyMarket, freeAgentTick } from './market.ts';
 import { emptyScouting, refreshCandidates } from './scouting.ts';
+import { initClub } from './club.ts';
 
 export const SAVE_FORMAT = 'fotbalovy-manazer-save';
 
@@ -73,7 +74,7 @@ export function parseSave(input: string | unknown, data: GameData): { save: Save
     }
   }
   if (!isObj(raw) || raw.format !== SAVE_FORMAT) throw new SaveError('Tohle není uložená hra Fotbalového manažera CZ.');
-  if (raw.version !== SAVE_VERSION && raw.version !== 1 && raw.version !== 2 && raw.version !== 3)
+  if (raw.version !== SAVE_VERSION && ![1, 2, 3, 4].includes(raw.version as number))
     throw new SaveError(`Uložená hra má verzi ${String(raw.version)}, tahle verze hry umí načíst verze 1–${SAVE_VERSION}.`);
   if (!isObj(raw.game)) throw new SaveError('Uložená hra je poškozená: chybí stav hry.');
   const warnings: string[] = [];
@@ -89,8 +90,15 @@ export function parseSave(input: string | unknown, data: GameData): { save: Save
   }
   if (raw.version === 3) {
     raw.game = migrateV3(raw.game as unknown as GameState, data);
-    raw.version = SAVE_VERSION;
+    raw.version = 4;
     warnings.push('Uložená hra byla převedena na verzi s přestupy a skautingem: trh začíná prázdný, POT ostatních hráčů se ukazuje jako odhad.');
+  }
+  if (raw.version === 4) {
+    const g = raw.game as unknown as GameState;
+    g.club = initClub(g, data);
+    g.version = SAVE_VERSION;
+    raw.version = SAVE_VERSION;
+    warnings.push('Uložená hra byla převedena na verzi s klubem: stadion, vztahy a média začínají z výchozího stavu.');
   }
   const game = raw.game as Record<string, unknown>;
 
@@ -194,7 +202,7 @@ function migrateV2(game: GameState, data: GameData): GameState {
 
 /** Version 3 (phase 5) -> version 4: transfer market, scouting, free agents. */
 function migrateV3(game: GameState, data: GameData): GameState {
-  const g = { ...game, version: SAVE_VERSION, market: emptyMarket(), scouting: emptyScouting() } as GameState;
+  const g = { ...game, version: 4, market: emptyMarket(), scouting: emptyScouting() } as unknown as GameState;
   for (const f of Object.values(g.finances)) {
     f.payables ??= 0;
     f.receivables ??= 0;

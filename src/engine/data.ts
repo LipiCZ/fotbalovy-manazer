@@ -9,6 +9,7 @@ import namesJson from '../../data/names.json';
 import balanceJson from '../../data/balance.json';
 import tacticsJson from '../../data/tactics.json';
 import pyramidJson from '../../data/pyramid.json';
+import flavorJson from '../../data/flavor.json';
 import { hashString } from './rng.ts';
 import {
   GK_TECH,
@@ -220,6 +221,8 @@ export interface Balance {
   rotation: { minCondition: number };
   transfers: TransferBalance;
   scouting: ScoutingBalance;
+  club: ClubBalance;
+  captain: { minLeadership: number; formDropDamping: number; moraleDropDamping: number };
 }
 
 export type TrainingIntensity = 'light' | 'normal' | 'hard';
@@ -390,6 +393,7 @@ export interface GameData {
   balance: Balance;
   tactics: TacticsData;
   pyramid: Pyramid;
+  flavor: Flavor;
 }
 
 export interface RawGameData {
@@ -400,6 +404,7 @@ export interface RawGameData {
   balance: unknown;
   tactics: unknown;
   pyramid: unknown;
+  flavor: unknown;
 }
 
 export class DataValidationError extends Error {
@@ -554,7 +559,7 @@ export function validateGameData(raw: RawGameData): GameData {
       'rating', 'attributes', 'squad', 'strength', 'age', 'profile', 'potential', 'simpleResults',
       'match', 'condition', 'form', 'injuries', 'discipline', 'ratings', 'ai',
       'development', 'academy', 'squads', 'retirement', 'training', 'rotation', 'calibration', 'economy', 'board',
-      'transfers', 'scouting',
+      'transfers', 'scouting', 'club', 'captain',
     ])
       if (!isObj(raw.balance[key])) problems.push(`balance.${key}: chybí`);
     if (problems.length === 0) {
@@ -620,9 +625,33 @@ export function validateGameData(raw: RawGameData): GameData {
     if (pyramid.cup.rounds.length < 1) problems.push('pyramid.cup: žádná kola');
   }
 
+  // --- flavor texts (media, social feed, press conferences, random events)
+  const flavor = raw.flavor as Flavor;
+  if (!isObj(raw.flavor)) problems.push('flavor: očekáván objekt');
+  else {
+    const f = raw.flavor;
+    for (const k of ['bigWin', 'win', 'draw', 'loss', 'bigLoss'])
+      if (!isObj(f.headlines) || !Array.isArray(f.headlines[k]) || (f.headlines[k] as unknown[]).length === 0) problems.push(`flavor.headlines.${k}: chybí texty`);
+    for (const k of ['1', '2', '3']) if (!isObj(f.outlets) || !Array.isArray(f.outlets[k])) problems.push(`flavor.outlets.${k}: chybí`);
+    if (!isObj(f.social) || !Array.isArray(f.social.authors)) problems.push('flavor.social: chybí autoři');
+    if (!isObj(f.press) || !Array.isArray(f.press.options) || (f.press.options as unknown[]).length === 0) problems.push('flavor.press.options: chybí');
+    if (!Array.isArray(f.investors) || f.investors.length === 0) problems.push('flavor.investors: chybí');
+    const ids = new Set<string>();
+    if (!Array.isArray(f.events)) problems.push('flavor.events: očekáváno pole');
+    else
+      for (const e of f.events as Record<string, unknown>[]) {
+        const where = `flavor.events.${String(e.id)}`;
+        if (typeof e.id !== 'string' || ids.has(e.id)) problems.push(`${where}: chybí nebo duplicitní id`);
+        ids.add(String(e.id));
+        if (!Array.isArray(e.levels) || !(e.levels as unknown[]).every((l) => l === 1 || l === 2 || l === 3)) problems.push(`${where}: levels musí být 1–3`);
+        if (typeof e.title !== 'string' || typeof e.text !== 'string') problems.push(`${where}: chybí title nebo text`);
+        if (!isObj(e.effects) && !Array.isArray(e.options)) problems.push(`${where}: chybí effects nebo options`);
+      }
+  }
+
   if (problems.length > 0) throw new DataValidationError(problems);
   const hash = hashString(JSON.stringify(raw)).toString(16).padStart(8, '0');
-  return { hash, regions, competitions, clubs, names, balance, tactics, pyramid };
+  return { hash, regions, competitions, clubs, names, balance, tactics, pyramid, flavor };
 }
 
 export function loadDefaultData(): GameData {
@@ -634,6 +663,7 @@ export function loadDefaultData(): GameData {
     balance: balanceJson,
     tactics: tacticsJson,
     pyramid: pyramidJson,
+    flavor: flavorJson,
   });
 }
 
@@ -716,3 +746,61 @@ export interface ScoutingBalance {
   tips: { chancePerScoutMonth: number; age: [number, number]; potBonus: [number, number]; cost: [number, number]; persuadeChance: number };
   exPlayerScout: { eliteFrom: number; experiencedFrom: number };
 }
+
+/** Effects of a decision or event on the manager's club (relations are 0–100 points). */
+export interface Effects {
+  cash?: number;
+  cashNote?: string;
+  fans?: number;
+  board?: number;
+  city?: number;
+  squad?: number;
+}
+
+export interface FlavorEvent {
+  id: string;
+  levels: Level[];
+  title: string;
+  text: string;
+  effects?: Effects;
+  options?: { label: string; effects: Effects }[];
+}
+
+export interface Flavor {
+  outlets: Record<`${Level}`, string[]>;
+  headlines: Record<'bigWin' | 'win' | 'draw' | 'loss' | 'bigLoss', string[]>;
+  social: { authors: string[]; win: string[]; draw: string[]; loss: string[]; neutral: string[] };
+  press: { triggers: Record<string, string>; options: { label: string; effects: Effects }[] };
+  investors: string[];
+  events: FlavorEvent[];
+}
+
+export interface ClubBalance {
+  stadium: {
+    levels: { label: string; capacity: number; costToNext: number; months: number }[];
+    requiredByLevel: Record<`${Level}`, number>;
+    rent: { monthlyShareOfRevenue: number; attendanceFactor: number; fansPenalty: number };
+    licencePointsIfNotStarted: number;
+  };
+  city: { shareFrom: number; sharePerPoint: number; maxShare: number; metBonus: number; failedPenalty: number; failedRepayShare: number; academyTarget: number };
+  investor: { depositShareOfRevenue: number; targetTighter: number; seasons: number; declineFans: number };
+  relations: {
+    start: Record<'fans' | 'board' | 'city' | 'squad', number>;
+    driftPerMonth: number;
+    match: Record<'W' | 'D' | 'L', { fans: number; squad: number }>;
+    bigResultGoals: number;
+    derbyFactor: number;
+    ticketTooExpensive: number;
+    ticketCheap: number;
+    academyCityBonus: number;
+    unhappyPlayer: { minForm: number; maxMinutesShare: number; squad: number };
+    soldFavourite: number;
+  };
+  morale: { maxEffect: number };
+  fans: { attendanceEffect: number };
+  events: { chance: Record<EventsSetting, number>; lowerLeagueFactor: number; moneyScaleByLevel: Record<`${Level}`, number> };
+  press: { lossStreak: number; winStreak: number };
+  socialPerMatch: number;
+}
+
+export type EventsSetting = 'vypnuto' | 'občas' | 'často';

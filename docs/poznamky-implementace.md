@@ -33,3 +33,13 @@ Každá položka: co jsem rozhodl, proč, a kde se to dá změnit.
 - **Účetnictví přestupů**: prodej = výnos (nepeněžní) + pohledávka, peníze chodí ve splátkách („Prodej hráčů (příjmy)“ v peněžních tocích). Nákup: platby jsou investiční tok, aktivovaná registrace se odepisuje měsíčně.
 - **Zjednodušení**: AI-AI hostování není; AI kluby mladé jen nabízejí manažerovi. Nabídky AI na hráče manažera chodí jen v okně (design říká „kdykoli“ – mimo okno by stejně jen čekaly). Bez zpětného odkupu, práva dorovnat, bonusů, finančního ředitele a poptávek.
 - **Otevřené otázky**: (1) Mají AI kluby smět kupovat i mimo svou nejslabší pozici (např. investice do talentů)? (2) Má mít manažer limit kádru (např. 30 seniorů)? Teď ho hlídá jen rozpočet. (3) Rozpočet na přestupy od vedení se zatím jen ukazuje, nevynucuje – má překročení snížit hodnocení vedení?
+
+## Fáze 7 – stadion, město, investor, vztahy, média
+
+- **Malé dopady záměrně** (design: „čísla mění jen málo“): kabina ±3 % síly, fanoušci ±10 % návštěvy. Kalibrace zápasů ani světa se nemění (vliv má jen tým hráče).
+- **Stadion jen u klubu hráče.** AI kluby licenci stadionu neřeší; postoupivší AI klub hraje doma bez omezení.
+- **Dotace města se účtuje čistou metodou**: snižuje pořizovací cenu stadionu (v aktivech je jen část placená klubem). IFRS (IAS 20) to dovoluje; podle českých předpisů se, pokud vím, investiční dotace o pořizovací cenu majetku také snižuje – **ověřit** (nemám zdroj z prostředí).
+- **Investor**: zjednodušeně jen vklad, změna právní formy a přísnější cíl ligy; bez podílu na zisku a bez odchodu investora. Spolek dostane nabídku jen po postupu (návrh), „vyšší reputace“ z designu zatím není (reputace chybí).
+- **Kapitán**: tlumí jen propady nálady kabiny. „Propady formy“ by znamenaly měnit známky, ze kterých se počítá vývoj, proto zatím ne.
+- **Texty** (titulky, sociální sítě, události) jsou vlastní, bez reálných médií a osob. České skloňování názvů klubů hra neumí, šablony jsou proto psané tak, aby název stál v 1. pádě.
+- **Otevřené otázky**: (1) Má vedení podle svého vztahu měnit rozpočet (design, tabulka v sekci 14)? Zatím jen ukazuje průběžné hodnocení. (2) Mají se rozlišovat typy majitelů (město, podnikatel, bohatý majitel)? (3) Ceny vstupenek (permanentka, derby, pohár) z designu jsou zatím jedna cena.

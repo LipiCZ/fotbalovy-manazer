@@ -24,7 +24,9 @@ export function boardGoals(state: GameState, data: GameData): BoardGoals | null 
   const rank = [...teams].sort((a, b) => strength(b) - strength(a) || a.localeCompare(b)).indexOf(clubId) + 1;
   const n = teams.length;
   // The favourites are expected to finish near the top, the others a little below their squad rank.
-  const target = Math.min(n, rank <= 2 ? rank + 1 : rank + data.balance.board.goals.leagueSlack);
+  // An investor wants results one place better (phase 7, design section 13).
+  const tighter = state.club?.investor ? data.balance.club.investor.targetTighter : 0;
+  const target = Math.max(1, Math.min(n, rank <= 2 ? rank + 1 : rank + data.balance.board.goals.leagueSlack) - tighter);
   let leagueLabel: string;
   if (target === 1) leagueLabel = level === 1 ? 'vyhrát titul' : 'vyhrát soutěž a postoupit';
   else if (target >= n - 3) leagueLabel = `zachránit se (do ${target}. místa)`;

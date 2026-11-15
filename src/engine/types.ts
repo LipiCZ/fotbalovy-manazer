@@ -217,6 +217,8 @@ export interface Player {
   registration?: { cost: number; bookValue: number; monthly: number };
   /** Share of a future transfer fee owed to a former club. */
   sellOn?: { clubId: string; share: number };
+  /** Announced in winter that this is his last season (phase 7); persuaded = stays one more season. */
+  lastSeason?: { announced: string; persuaded?: boolean };
   /** Competition value factor moving gradually after a transfer (anti-exploit, design section 8). */
   valueLeague?: { from: number; to: number; since: string };
 }

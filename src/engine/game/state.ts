@@ -1,12 +1,12 @@
 // Serializable game state (saved as-is). No Maps, no class instances.
 
-import type { TrainingIntensity } from '../data.ts';
+import type { Effects, EventsSetting, TrainingIntensity } from '../data.ts';
 import type { Budget, ClubFinance, Transaction, TxType } from './finance.ts';
 import type { Tactics } from '../lineup.ts';
 import type { MatchReport, TeamMatchStats } from '../match/types.ts';
 import type { CompetitionId, Fixture, MatchResult, Player, Position } from '../types.ts';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 /** Compact per-match record kept for every match. */
 export interface MatchSummary extends MatchResult {
@@ -115,7 +115,7 @@ export interface PlayerSeasonStats {
   motm: number;
 }
 
-export type NewsKind = 'injury' | 'suspension' | 'lineup' | 'recovered' | 'academy' | 'development' | 'season' | 'info' | 'transfer' | 'contract' | 'scouting';
+export type NewsKind = 'injury' | 'suspension' | 'lineup' | 'recovered' | 'academy' | 'development' | 'season' | 'info' | 'transfer' | 'contract' | 'scouting' | 'media';
 
 export interface NewsItem {
   date: string;
@@ -257,6 +257,58 @@ export interface ScoutingState {
   nextId: number;
 }
 
+export type RelationId = 'fans' | 'board' | 'city' | 'squad';
+
+/** A choice waiting for the manager (investor, press conference, event, city deal, last season). */
+export interface Decision {
+  id: string;
+  kind: 'investor' | 'press' | 'event' | 'cityDeal' | 'lastSeason';
+  date: string;
+  title: string;
+  text: string;
+  options: { label: string; effects: Effects; action?: string }[];
+  /** Player or other subject. */
+  ref?: string;
+}
+
+export interface CityDeal {
+  condition: 'topHalf' | 'promotion' | 'academy';
+  label: string;
+  /** Season (start year) at whose end the condition is checked. */
+  seasonYear: number;
+  share: number;
+  /** Paid by the city so far. */
+  paid: number;
+  status: 'active' | 'met' | 'failed';
+}
+
+export interface StadiumProject {
+  targetLevel: number;
+  monthsLeft: number;
+  /** Total price and the city's share. */
+  cost: number;
+  cityShare: number;
+  startedAt: string;
+}
+
+/** The manager's club beyond the squad (design, sections 9, 13, 14; phase 7). */
+export interface ClubState {
+  stadiumLevel: number;
+  /** Playing in a rented stadium this season (after a promotion without the required level). */
+  rented: boolean;
+  project: StadiumProject | null;
+  cityDeal: CityDeal | null;
+  legalForm: 'spolek' | 'a.s.';
+  investor: { name: string; deposit: number; untilSeason: number } | null;
+  relations: Record<RelationId, number>;
+  decisions: Decision[];
+  social: { date: string; author: string; text: string }[];
+  events: EventsSetting;
+  /** Results of the manager's recent matches (for streaks). */
+  streak: ('W' | 'D' | 'L')[];
+  nextId: number;
+}
+
 export interface GameState {
   version: typeof SAVE_VERSION;
   seed: string;
@@ -285,6 +337,7 @@ export interface GameState {
   board: BoardState | null;
   market: MarketState;
   scouting: ScoutingState;
+  club: ClubState | null;
 }
 
 export function emptyStats(): PlayerSeasonStats {

@@ -20,6 +20,8 @@ export interface MatchContext {
   rng: Rng;
   /** False for a neutral venue (e.g. a cup final). */
   homeAdvantage?: boolean;
+  /** Extra strength of a side as a share (e.g. morale of the manager's team, phase 7). */
+  teamBonus?: Partial<Record<Side, number>>;
   /** When true the assistant decides substitutions and mentality changes for this side. */
   autopilot?: Record<Side, boolean>;
   /** Match date (ISO); enables the adaptation penalty of young players. */
@@ -194,7 +196,7 @@ function recomputeBands(state: MatchState, team: TeamState): void {
     for (const b of BANDS) sums[b] += (w[b] ?? 0) * eff;
     if (op.slot === 'GK') gk = op.gk * op.fit * conditionFactor(op.condition, balance);
   }
-  const home = team.side === 'home' && state.ctx.homeAdvantage !== false ? 1 + balance.match.homeBonus : 1;
+  const home = (team.side === 'home' && state.ctx.homeAdvantage !== false ? 1 + balance.match.homeBonus : 1) * (1 + (state.ctx.teamBonus?.[team.side] ?? 0));
   team.bands = {
     def: (Math.max(1, sums.def) / state.bandNorm.def) * home,
     mid: (Math.max(1, sums.mid) / state.bandNorm.mid) * home,
