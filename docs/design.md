@@ -88,6 +88,8 @@ Zápas má dva režimy. Minutový přenos minutu po minutě není potřeba.
 
 **Statistiky:** střely a střely na bránu, xG, držení míče, fauly, karty, rohy, známky hráčů (1–10).
 
+**Doplněno ve fázi 8 (implementace):** živý režim spouští „Hrát živě“ na Domů. Rychlost 1× (0,5 s na minutu), 2,5× a 8×; hra se sama zastaví při gólu, zranění, vyloučení a v poločase. Střídání (konkrétní hráč za konkrétního), nastavení týmu, styl a presink jde měnit kdykoli; po změně taktiky asistent u týmu hráče přestane sám měnit nastavení. „Dohrát rychle“ dosimuluje zbytek. Bez zásahu dopadne živý zápas stejně jako rychlý (stejné náhodné proudy). Hrací den rozdělaný živým zápasem se neukládá. Statistiky během zápasu: střely, na bránu, xG, držení míče; sestava s kondicí.
+
 **Obrazovka výsledku:** inspirace Czech Soccer Managerem. Nahoře týmy a skóre, uprostřed stadion s místem zápasu a návštěvou ve tvaru 6 752 (10 000), po stranách střelci s minutami. Navíc oproti CSM: xG, klíčové statistiky a hráč zápasu.
 
 ## 5. Rozvoj hráčů a mládež
@@ -348,6 +350,13 @@ Hlavní režim je kariéra od dna ve 3. lize. Volný výběr je doplňkový.
 - **Vyhazov:** při katastrofální sezóně, nebo po dvou neúspěšných sezónách za sebou.
 - Ukazatel „Vedení“ ve vztazích (sekce 14) tohle hodnocení jen průběžně zobrazuje, sám o vyhazovu nerozhoduje.
 
+**Doplněno ve fázi 8 (implementace, návrh – `balance.json → career`):**
+
+- Kariéra od dna: pozadí trenéra „trenér mládeže“ (reputace 15, město +10), „bývalý hráč“ (20, kabina +10), „trenér divize“ (12, fanoušci +10); 4 nabídky ze 3. ligy s profily: chudý klub se silnou akademií (peníze ×0,6, dorostenci POT +6), ambiciózní majitel (peníze ×1,6, vedení −10), klub s dobrým vztahem k městu (město +20). Volný výběr: reputace podle soutěže (1. liga 60, 2. liga 40, 3. liga 20).
+- Reputace 0–100 po sezóně: vynikající +12, úspěšná +7, přijatelná +2, neúspěšná −6, katastrofa −12; postup +8, sestup −6, titul +10, pohár +5.
+- Nabídky větších klubů (vyšší soutěž nebo větší klub ve stejné) jen s dostatečnou reputací (např. 2. liga 30–45, 1. liga 50–85 podle velikosti); šance po vynikající sezóně 60 %, po úspěšné 30 %, po přijatelné 10 %; 1–2 nabídky, jdou odmítnout. Přestup trenéra proběhne hned na začátku sezóny.
+- Vyhazov podle pravidla výše (katastrofa, nebo dvě neúspěšné za sebou): reputace −5 a 3 nabídky z klubů stejné nebo nižší úrovně (nouzově 3. liga). Dokud trenér nepřijme, sezóna nepokračuje. Konec kariéry (žádná nabídka) hra nezná.
+
 *Otevřená otázka:* sekce 13 a 14 říkají, že vedení hodnotí i finance (účetní výsledek, „zdravé finance“), ale doplněk zná jen cíle liga a pohár. Navrhuji jako třetí cíl přidat finance (hodnocené stejnou stupnicí). Rozhodnutí je na tobě.
 
 ## 11. Hráči a atributy
@@ -550,6 +559,8 @@ Tahle vrstva dává hře atmosféru a zpětnou vazbu, ale čísla mění jen má
 - Ohlášení poslední sezóny: v lednu hráč, jehož šance na konec kariéry je aspoň 50 %; přemluvit jde s šancí 15 % (zůstane ještě sezónu), jinak po sezóně jistě končí.
 
 **Ceny sezóny:** gól sezóny, objev sezóny, nejlepší a nejhorší přestup, nejzbytečnější žlutá karta, hláška sezóny.
+
+**Doplněno ve fázi 8 (implementace):** gól sezóny = gól s nejnižším xG v zápasech mého týmu; objev = hráč do 21 let s nejlepší průměrnou známkou v mé soutěži (aspoň 8 zápasů); nejlepší a nejhorší přestup ze všech placených přestupů sezóny (aspoň 5 zápasů; nejhorší = vysoká cena × slabá známka); nejzbytečnější žlutá = nejpozdější žlutá v zápase s největším rozdílem skóre (moje zápasy); hláška = šablona z `flavor.json` s hráčem mého týmu. Ceny se ukazují na konci sezóny a ukládají do historie.
 
 ## 15. Uživatelské rozhraní
 

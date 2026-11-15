@@ -5,7 +5,7 @@ import { getAppStore, useGame } from '../../state/store.ts';
 import { clubOf, playerOf, PlayerLink, RatingBadge, shortName } from '../components.tsx';
 import { formatDate, minuteLabel, num, thousands } from '../format.ts';
 
-function StatLine({ label, home, away, format = (v: number) => String(v) }: { label: string; home: number; away: number; format?: (v: number) => string }) {
+export function StatLine({ label, home, away, format = (v: number) => String(v) }: { label: string; home: number; away: number; format?: (v: number) => string }) {
   const total = home + away || 1;
   return (
     <div className="statline">
@@ -22,7 +22,7 @@ function StatLine({ label, home, away, format = (v: number) => String(v) }: { la
   );
 }
 
-const EVENT_TEXT: Partial<Record<MatchEvent['type'], string>> = {
+export const EVENT_TEXT: Partial<Record<MatchEvent['type'], string>> = {
   goal: '⚽',
   penaltyGoal: '⚽ (pen.)',
   penaltyMiss: '✗ neproměněná penalta',

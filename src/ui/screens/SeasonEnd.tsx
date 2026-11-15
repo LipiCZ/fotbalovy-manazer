@@ -9,6 +9,7 @@ import { money, num, seasonLabel } from '../format.ts';
 import { evaluateSeason, wouldBeSacked } from '../../engine/game/board.ts';
 import { statements } from '../../engine/game/finance.ts';
 import type { Grade } from '../../engine/game/state.ts';
+import { seasonAwards } from '../../engine/game/awards.ts';
 
 const REASON: Record<string, string> = {
   promoted: 'postup',
@@ -58,7 +59,7 @@ function SeasonReport() {
             </tr>
           </tbody>
         </table>
-        {sacked && <p className="bad">Podle pravidel by vedení trenéra odvolalo (vyhazov přijde s kariérou trenéra ve fázi 8).</p>}
+        {sacked && <p className="bad">Po takové sezóně vedení trenéra odvolá. V nové sezóně si vybereš jiné angažmá.</p>}
       </div>
       <div>
         <h3>Hospodaření sezóny</h3>
@@ -88,6 +89,29 @@ function SeasonReport() {
         </table>
         <p className="help">Odměny za konečné umístění se připíšou při přechodu do nové sezóny. Podrobné výkazy jsou na obrazovce Finance.</p>
       </div>
+    </section>
+  );
+}
+
+function Awards() {
+  const { game, data, revision } = useGame();
+  const awards = useMemo(() => seasonAwards(game, data), [game, data, revision]);
+  if (awards.length === 0) return null;
+  return (
+    <section className="card" data-testid="awards">
+      <h3>Ceny sezóny</h3>
+      <table className="data">
+        <tbody>
+          {awards.map((a) => (
+            <tr key={a.title}>
+              <td>
+                <strong>{a.title}</strong>
+              </td>
+              <td>{a.text}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 }
@@ -145,6 +169,7 @@ export function SeasonEndScreen() {
         )}
       </section>
       {game.finished && <SeasonReport />}
+      {game.finished && <Awards />}
       <div className="grid cols-3">
         <section className="card">
           <h3>Vítězové</h3>

@@ -3,8 +3,8 @@
 
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { useStore } from 'zustand';
-import type { GameData } from '../engine/data.ts';
-import { advanceDay, advanceToNextUserMatch, invalidateRuntime, newGame, runtimeOf, squadOf } from '../engine/game/advance.ts';
+import type { ClubProfile, CoachBackground, GameData } from '../engine/data.ts';
+import { advanceDay, advanceToNextUserMatch, beginDay, endDay, invalidateRuntime, type DayInProgress, newGame, runtimeOf, squadOf } from '../engine/game/advance.ts';
 import { exactAge } from '../engine/game/development.ts';
 import { startNewSeason } from '../engine/game/transition.ts';
 import { repayLoan, setTicketPrice, takeLoan } from '../engine/game/finance.ts';
@@ -27,7 +27,9 @@ export type Screen =
   | { name: 'finance' }
   | { name: 'transfers'; tab?: TransfersTab }
   | { name: 'scouting' }
-  | { name: 'club' };
+  | { name: 'club' }
+  | { name: 'live' }
+  | { name: 'career' };
 
 export type TransfersTab = 'search' | 'offers' | 'free' | 'mine';
 
@@ -49,12 +51,18 @@ export interface AppState {
   message: Message | null;
   saves: SaveListItem[];
   saveDialog: boolean;
+  /** The manager's match being played live (the match day is half done; not saved). */
+  live: DayInProgress | null;
 
   navigate(screen: Screen): void;
   back(): void;
-  startNewGame(opts: { clubId: string; managerName: string; seed: string }): void;
+  startNewGame(opts: { clubId: string; managerName: string; seed: string; career?: { mode: 'career' | 'free'; background?: CoachBackground; profile?: ClubProfile } }): void;
   continueGame(): Promise<void>;
   skipToEnd(): Promise<void>;
+  /** Plays on to the manager's next match and opens it in live mode. */
+  startLive(): void;
+  /** Finishes the live match (the rest is simulated) and the match day. */
+  finishLive(): Promise<void>;
   /** Changes the manager's team (tactics screen). */
   editUser(fn: (user: UserTeamState, squad: Player[]) => void): void;
   startNextSeason(): Promise<void>;
@@ -90,10 +98,15 @@ export function createAppStore(deps: StoreDeps): StoreApi<AppState> {
   return createStore<AppState>((set, get) => {
     const bump = () => set((s) => ({ revision: s.revision + 1 }));
     const persist = async (slot: Slot, label: string) => {
-      const { game, data } = get();
-      if (!game) return;
+      const { game, data, live } = get();
+      // A half-played match day is never saved.
+      if (!game || live) return;
       const save = makeSave(game, data, label, now().toISOString());
       await deps.storage.write(slot, save.meta, serializeSave(save));
+    };
+    const sackedStop = () => {
+      set({ message: { kind: 'warn', text: 'Vedení tě odvolalo. Než sezóna začne, vyber si nové angažmá.' } });
+      get().navigate({ name: 'career' });
     };
     const autosave = async () => {
       try {
@@ -111,6 +124,7 @@ export function createAppStore(deps: StoreDeps): StoreApi<AppState> {
         history: [],
         message: warnings.length > 0 ? { kind: 'warn', text: warnings.join(' ') } : null,
         saveDialog: false,
+        live: null,
       });
     };
 
@@ -124,6 +138,7 @@ export function createAppStore(deps: StoreDeps): StoreApi<AppState> {
       message: null,
       saves: [],
       saveDialog: false,
+      live: null,
 
       navigate(screen) {
         set((s) => ({ screen, history: [...s.history, s.screen].slice(-30) }));
@@ -135,14 +150,16 @@ export function createAppStore(deps: StoreDeps): StoreApi<AppState> {
           return prev ? { screen: prev, history } : {};
         });
       },
-      startNewGame({ clubId, managerName, seed }) {
-        const game = newGame(get().data, { seed, clubId, managerName });
+      startNewGame({ clubId, managerName, seed, career }) {
+        const game = newGame(get().data, { seed, clubId, managerName, ...(career ? { career } : {}) });
         openGame(game, []);
         void autosave();
       },
       async continueGame() {
-        const { game, data, busy } = get();
+        const { game, data, busy, live } = get();
         if (!game || busy) return;
+        if (live) return get().navigate({ name: 'live' });
+        if (game.coach?.sacked) return sackedStop();
         if (game.finished) return get().navigate({ name: 'seasonEnd' });
         const days = advanceToNextUserMatch(game, data);
         bump();
@@ -152,8 +169,9 @@ export function createAppStore(deps: StoreDeps): StoreApi<AppState> {
         await autosave();
       },
       async skipToEnd() {
-        const { game, data, busy } = get();
-        if (!game || busy || game.finished) return;
+        const { game, data, busy, live } = get();
+        if (!game || busy || game.finished || live) return;
+        if (game.coach?.sacked) return sackedStop();
         const total = game.competitions.reduce((s, c) => s + c.roundDates.length, 0);
         set({ busy: { label: 'Simuluji zbytek sezóny…', progress: 0 } });
         // While skipping the manager cannot react, so the assistant picks the line-ups (with the manager's style).
@@ -171,6 +189,38 @@ export function createAppStore(deps: StoreDeps): StoreApi<AppState> {
         }
         bump();
         get().navigate({ name: 'seasonEnd' });
+        await autosave();
+      },
+      startLive() {
+        const { game, data, busy, live } = get();
+        if (!game || busy || live) return;
+        if (game.coach?.sacked) return sackedStop();
+        if (game.finished) return get().navigate({ name: 'seasonEnd' });
+        for (;;) {
+          const day = beginDay(game, data, {}, true);
+          if (!day) {
+            bump();
+            return get().navigate({ name: 'seasonEnd' });
+          }
+          if (day.live) {
+            set({ live: day });
+            bump();
+            return get().navigate({ name: 'live' });
+          }
+          endDay(game, data, day);
+          if (game.finished) {
+            bump();
+            return get().navigate({ name: 'seasonEnd' });
+          }
+        }
+      },
+      async finishLive() {
+        const { game, data, live } = get();
+        if (!game || !live) return;
+        endDay(game, data, live);
+        set({ live: null });
+        bump();
+        if (game.user) set((s) => ({ screen: { name: 'match', reportIndex: (game.user?.matches.length ?? 1) - 1 }, history: s.history }));
         await autosave();
       },
       async startNextSeason() {

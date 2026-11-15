@@ -4,9 +4,9 @@
 // injuries heal, and on the 1st of every month players develop (design, section 5).
 // All randomness is derived from the seed per match / per day, so a loaded game continues identically.
 
-import type { GameData, InjuryType, TrainingIntensity } from '../data.ts';
+import type { ClubProfile, CoachBackground, GameData, InjuryType, TrainingIntensity } from '../data.ts';
 import { lineupStrength, type TeamSheet } from '../lineup.ts';
-import { playMatch } from '../match/engine.ts';
+import { createMatch, finishMatch, playMatch, stepMinute, type MatchContext, type MatchState } from '../match/engine.ts';
 import type { MatchReport } from '../match/types.ts';
 import { overall } from '../players/rating.ts';
 import type { Seed } from '../rng.ts';
@@ -44,6 +44,7 @@ import {
 import { initialUserTeam, prepareUserSheet, userStrength } from './userTeam.ts';
 import { aiMarketTick, amortizeRegistrations, emptyMarket, expireOffers, freeAgentTick, marketDays, payDueInstallments } from './market.ts';
 import { emptyScouting, refreshCandidates, scoutingTick } from './scouting.ts';
+import { initCoach } from './career.ts';
 import { attendanceFactor, clubAfterUserMatch, clubMonthTick, initClub, moraleBonus } from './club.ts';
 
 const MAX_NEWS = 80;
@@ -96,6 +97,8 @@ export interface NewGameOptions {
   seed: Seed;
   userClubId: string | null;
   managerName?: string;
+  /** Coach career (phase 8): career from the bottom with a background and club profile, or a free choice. */
+  career?: { mode: 'career' | 'free'; background?: CoachBackground; profile?: ClubProfile };
 }
 
 /** League fixtures and dates for the current membership. */
@@ -178,6 +181,7 @@ export function createGameState(world: World, opts: NewGameOptions): GameState {
     market: emptyMarket(),
     scouting: emptyScouting(),
     club: null,
+    coach: null,
   };
   initFinances(state, data, seasonRngOf(state).fork('contracts'));
   freeAgentTick(state, data, start, seasonRngOf(state).fork('free-agents'), data.balance.transfers.freeAgents.poolTarget);
@@ -188,12 +192,18 @@ export function createGameState(world: World, opts: NewGameOptions): GameState {
     state.user = initialUserTeam(squadOf(state, opts.userClubId), data);
     startBoardSeason(state, data);
     state.club = initClub(state, data);
+    initCoach(state, data, opts.career ?? { mode: 'free' });
   }
   return state;
 }
 
-export function newGame(data: GameData, opts: { seed: Seed; clubId: string; managerName: string; seasonYear?: number }): GameState {
-  return createGameState(createWorld(data, opts.seed, opts.seasonYear), { seed: opts.seed, userClubId: opts.clubId, managerName: opts.managerName });
+export function newGame(data: GameData, opts: { seed: Seed; clubId: string; managerName: string; seasonYear?: number; career?: NewGameOptions['career'] }): GameState {
+  return createGameState(createWorld(data, opts.seed, opts.seasonYear), {
+    seed: opts.seed,
+    userClubId: opts.clubId,
+    managerName: opts.managerName,
+    ...(opts.career ? { career: opts.career } : {}),
+  });
 }
 
 // ---------------------------------------------------------------- scheduled matches
@@ -570,7 +580,15 @@ function userMatchNews(state: GameState, data: GameData, report: MatchReport, be
   return news;
 }
 
-function playPlanned(state: GameState, data: GameData, m: PlannedMatch, news: NewsItem[], opts: AdvanceOptions): MatchReport {
+interface PreparedMatch {
+  home: TeamSheet;
+  away: TeamSheet;
+  ctx: MatchContext;
+  /** Applies the report to the game (players, stats, money, results). */
+  finalize: (report: MatchReport) => MatchReport;
+}
+
+function preparePlanned(state: GameState, data: GameData, m: PlannedMatch, news: NewsItem[], opts: AdvanceOptions): PreparedMatch {
   const rt = runtimeOf(state);
   const { balance } = data;
   const rng = seasonRngOf(state);
@@ -595,7 +613,7 @@ function playPlanned(state: GameState, data: GameData, m: PlannedMatch, news: Ne
 
   const suspended = [...homeSquad, ...awaySquad].filter((p) => p.state.suspensionMatches > 0);
   const bonus = state.club && (isUserHome || isUserAway) ? moraleBonus(state, data) : 0;
-  const report = playMatch(homeSheet, awaySheet, {
+  const ctx: MatchContext = {
     level: m.level,
     ...(bonus !== 0 ? { teamBonus: isUserHome ? { home: bonus } : { away: bonus } } : {}),
     balance,
@@ -604,38 +622,72 @@ function playPlanned(state: GameState, data: GameData, m: PlannedMatch, news: Ne
     date: m.date,
     ...(m.knockout ? { knockout: m.knockout } : {}),
     ...(m.neutral ? { homeAdvantage: false } : {}),
-  });
-  for (const p of suspended) p.state.suspensionMatches--;
-  const before = new Map([...homeSquad, ...awaySquad].map((p) => [p.id, p.state.suspensionMatches]));
+  };
+  // Table position for the attendance is taken before the match (same in quick and live mode).
   const leagueProgress = m.competitionId ? state.competitions.find((c) => c.id === m.competitionId) : undefined;
   const tablePosition = leagueProgress ? regularTable(state, leagueProgress.id, data).findIndex((r) => r.clubId === m.homeId) + 1 : null;
-  const gate = m.neutral
-    ? { attendance: 0, capacity: 0 }
-    : matchdayFinance(state, data, m.homeId, m.date, {
-        tablePosition,
-        teams: leagueProgress?.clubIds.length ?? 16,
-        rng: rng.fork(`gate:${m.rngKey}`),
-        ...(isUserHome ? { factor: attendanceFactor(state, data) } : {}),
-      });
-  const outcome = (own: number, opp: number) => (own > opp ? 'W' : own < opp ? 'L' : 'D') as 'W' | 'D' | 'L';
-  matchBonus(state, data, m.homeId, outcome(report.homeGoals, report.awayGoals), m.date);
-  matchBonus(state, data, m.awayId, outcome(report.awayGoals, report.homeGoals), m.date);
-  applyMatchToPlayers(report, rt.byId, balance, rng.fork(`discipline:${m.rngKey}`));
-  recordStats(state.playerStats, report);
-  m.store({ ...summarize(report, m.homeId, m.awayId, m.fixtureRound, m.date), ...(gate.capacity > 0 ? { attendance: gate.attendance, capacity: gate.capacity } : {}) });
-  opts.onReport?.(report, m.competitionId, m.round, m.date);
-  if ((isUserHome || isUserAway) && user) {
-    user.matches.push({ date: m.date, label: m.label, report });
-    news.push(...userMatchNews(state, data, report, before, m.date));
-    const scorer = report.events.find((e) => e.type === 'goal' && e.side === (isUserHome ? 'home' : 'away'));
-    const scorerName = scorer && 'playerId' in scorer ? rt.byId.get(scorer.playerId as string)?.lastName : undefined;
-    clubAfterUserMatch(state, data, { date: m.date, homeId: m.homeId, awayId: m.awayId, homeGoals: report.homeGoals, awayGoals: report.awayGoals, label: m.label, ...(scorerName ? { scorerName } : {}) }, news);
-  }
-  return report;
+  const finalize = (report: MatchReport): MatchReport => {
+    for (const p of suspended) p.state.suspensionMatches--;
+    const before = new Map([...homeSquad, ...awaySquad].map((p) => [p.id, p.state.suspensionMatches]));
+    const gate = m.neutral
+      ? { attendance: 0, capacity: 0 }
+      : matchdayFinance(state, data, m.homeId, m.date, {
+          tablePosition,
+          teams: leagueProgress?.clubIds.length ?? 16,
+          rng: rng.fork(`gate:${m.rngKey}`),
+          ...(isUserHome ? { factor: attendanceFactor(state, data) } : {}),
+        });
+    const outcome = (own: number, opp: number) => (own > opp ? 'W' : own < opp ? 'L' : 'D') as 'W' | 'D' | 'L';
+    matchBonus(state, data, m.homeId, outcome(report.homeGoals, report.awayGoals), m.date);
+    matchBonus(state, data, m.awayId, outcome(report.awayGoals, report.homeGoals), m.date);
+    applyMatchToPlayers(report, rt.byId, balance, rng.fork(`discipline:${m.rngKey}`));
+    recordStats(state.playerStats, report);
+    m.store({ ...summarize(report, m.homeId, m.awayId, m.fixtureRound, m.date), ...(gate.capacity > 0 ? { attendance: gate.attendance, capacity: gate.capacity } : {}) });
+    opts.onReport?.(report, m.competitionId, m.round, m.date);
+    if ((isUserHome || isUserAway) && user) {
+      user.matches.push({ date: m.date, label: m.label, report });
+      news.push(...userMatchNews(state, data, report, before, m.date));
+      const scorer = report.events.find((e) => e.type === 'goal' && e.side === (isUserHome ? 'home' : 'away'));
+      const scorerName = scorer?.playerId ? rt.byId.get(scorer.playerId)?.lastName : undefined;
+      clubAfterUserMatch(state, data, { date: m.date, homeId: m.homeId, awayId: m.awayId, homeGoals: report.homeGoals, awayGoals: report.awayGoals, label: m.label, ...(scorerName ? { scorerName } : {}) }, news);
+    }
+    return report;
+  };
+  return { home: homeSheet, away: awaySheet, ctx, finalize };
+}
+
+function playPlanned(state: GameState, data: GameData, m: PlannedMatch, news: NewsItem[], opts: AdvanceOptions): MatchReport {
+  const prepared = preparePlanned(state, data, m, news, opts);
+  return prepared.finalize(playMatch(prepared.home, prepared.away, prepared.ctx));
+}
+
+/** The manager's match of the day, to be played live (phase 8): step it, then call endDay. */
+export interface LiveMatch {
+  label: string;
+  match: MatchState;
+  userSide: 'home' | 'away';
+  finalize: (report: MatchReport) => MatchReport;
+}
+
+/** A match day in progress (between beginDay and endDay). */
+export interface DayInProgress {
+  result: DayResult;
+  news: NewsItem[];
+  live: LiveMatch | null;
 }
 
 /** Plays the next match day. Returns null when the season is over. */
 export function advanceDay(state: GameState, data: GameData, opts: AdvanceOptions = {}): DayResult | null {
+  const day = beginDay(state, data, opts, false);
+  return day ? endDay(state, data, day) : null;
+}
+
+/**
+ * First half of a match day: the clock moves to the day and every match is played – except the
+ * manager's match when `live` is true, which is returned ready to be stepped minute by minute.
+ * The result is the same as in quick mode when the manager does not intervene (same random streams).
+ */
+export function beginDay(state: GameState, data: GameData, opts: AdvanceOptions = {}, live = false): DayInProgress | null {
   const date = nextMatchDate(state);
   if (date === null) {
     state.finished = true;
@@ -648,11 +700,31 @@ export function advanceDay(state: GameState, data: GameData, opts: AdvanceOption
   if (planned.length === 0 && !state.competitions.some((c) => c.roundDates[c.playedRounds] === date))
     throw new Error(`Hrací den ${date} nemá žádný zápas – chyba v rozpisu`);
   const result: DayResult = { date, played: [], news: [] };
+  let liveMatch: LiveMatch | null = null;
   for (const m of planned) {
-    const report = playPlanned(state, data, m, news, opts);
+    const isUser = m.homeId === state.userClubId || m.awayId === state.userClubId;
     result.played.push({ label: m.label, homeId: m.homeId, awayId: m.awayId });
-    if (report && (m.homeId === state.userClubId || m.awayId === state.userClubId)) result.userReport = report;
+    if (live && isUser && state.user) {
+      const prepared = preparePlanned(state, data, m, news, opts);
+      const userSide = m.homeId === state.userClubId ? 'home' : 'away';
+      prepared.ctx.autopilot = { home: true, away: true };
+      liveMatch = { label: m.label, match: createMatch(prepared.home, prepared.away, prepared.ctx), userSide, finalize: prepared.finalize };
+      continue;
+    }
+    const report = playPlanned(state, data, m, news, opts);
+    if (isUser) result.userReport = report;
   }
+  return { result, news, live: liveMatch };
+}
+
+/** Second half of a match day: the live match (if any) is applied, competitions move on. */
+export function endDay(state: GameState, data: GameData, day: DayInProgress): DayResult {
+  const { result, news } = day;
+  if (day.live) {
+    while (!day.live.match.finished) stepMinute(day.live.match);
+    result.userReport = day.live.finalize(finishMatch(day.live.match));
+  }
+  const date = result.date;
   for (const progress of state.competitions) if (progress.roundDates[progress.playedRounds] === date) progress.playedRounds++;
 
   progressPostseason(state, data);

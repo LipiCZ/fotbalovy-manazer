@@ -47,6 +47,9 @@ try {
   await check('nová hra: Bohemians Praha 1905', async () => {
     await page.getByLabel('Jméno trenéra').fill('Testovací Trenér');
     await page.getByLabel('Semínko světa', { exact: false }).fill('e2e');
+    await page.getByText('Nabídky').waitFor();
+    await shot('01-nova-hra-kariera');
+    await page.getByRole('button', { name: 'Volný výběr' }).click();
     await shot('01-nova-hra');
     await page.getByRole('button', { name: /Bohemians Praha 1905/ }).click();
     await page.getByRole('button', { name: 'Začít kariéru' }).click();
@@ -98,6 +101,17 @@ try {
   });
 
   let savedDate = '';
+  await check('živý zápas: běží, střídání, dohrát', async () => {
+    await page.getByRole('navigation').getByRole('button', { name: 'Domů' }).click();
+    await page.getByRole('button', { name: 'Hrát živě' }).click();
+    await page.getByTestId('live-score').waitFor();
+    await page.waitForTimeout(1500);
+    await page.getByRole('button', { name: /^Pauza|^Pokračovat/ }).first().waitFor();
+    await shot('05b-zivy-zapas');
+    await page.getByRole('button', { name: /Dohrát rychle|Výsledek zápasu/ }).click();
+    await page.getByText('Hráč zápasu').first().waitFor();
+  });
+
   await check('uložení na pozici 1', async () => {
     savedDate = await page.locator('.topbar span').nth(2).innerText();
     await page.getByRole('button', { name: 'Uložit / načíst' }).click();
@@ -190,6 +204,11 @@ try {
 
   for (const year of [2027, 2028, 2029, 2030]) {
     await check(`sezóna ${year}/${String(year + 1).slice(2)} až do konce`, async () => {
+      // After a sacking the manager must take a new job first.
+      if (await page.getByText('Vedení tě odvolalo – vyber nové angažmá').count()) {
+        await page.getByRole('navigation').getByRole('button', { name: 'Kariéra' }).click();
+        await page.getByTestId('job-offers').getByRole('button', { name: 'Přijmout' }).first().click();
+      }
       await page.getByRole('button', { name: 'Přeskočit na konec sezóny' }).click();
       await page.getByTestId('final-position').waitFor({ timeout: 90_000 });
       if (year < 2030) {
@@ -198,6 +217,15 @@ try {
       }
     });
   }
+
+  await check('ceny sezóny a kariéra trenéra', async () => {
+    await page.getByTestId('awards').waitFor();
+    await shot('21-ceny-sezony');
+    await page.getByRole('navigation').getByRole('button', { name: 'Kariéra' }).click();
+    await page.getByTestId('reputation').waitFor();
+    await shot('22-kariera');
+    await page.getByRole('navigation').getByRole('button', { name: 'Konec sezóny' }).click();
+  });
 
   await check('po 5 sezónách: historie, graf vývoje hráče', async () => {
     await page.getByRole('heading', { name: 'Moje sezóny' }).waitFor();

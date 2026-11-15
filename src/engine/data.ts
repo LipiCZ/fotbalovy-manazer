@@ -222,6 +222,7 @@ export interface Balance {
   transfers: TransferBalance;
   scouting: ScoutingBalance;
   club: ClubBalance;
+  career: CareerBalance;
   captain: { minLeadership: number; formDropDamping: number; moraleDropDamping: number };
 }
 
@@ -559,7 +560,7 @@ export function validateGameData(raw: RawGameData): GameData {
       'rating', 'attributes', 'squad', 'strength', 'age', 'profile', 'potential', 'simpleResults',
       'match', 'condition', 'form', 'injuries', 'discipline', 'ratings', 'ai',
       'development', 'academy', 'squads', 'retirement', 'training', 'rotation', 'calibration', 'economy', 'board',
-      'transfers', 'scouting', 'club', 'captain',
+      'transfers', 'scouting', 'club', 'captain', 'career',
     ])
       if (!isObj(raw.balance[key])) problems.push(`balance.${key}: chybí`);
     if (problems.length === 0) {
@@ -636,6 +637,7 @@ export function validateGameData(raw: RawGameData): GameData {
     if (!isObj(f.social) || !Array.isArray(f.social.authors)) problems.push('flavor.social: chybí autoři');
     if (!isObj(f.press) || !Array.isArray(f.press.options) || (f.press.options as unknown[]).length === 0) problems.push('flavor.press.options: chybí');
     if (!Array.isArray(f.investors) || f.investors.length === 0) problems.push('flavor.investors: chybí');
+    if (!Array.isArray(f.quotes) || f.quotes.length === 0) problems.push('flavor.quotes: chybí');
     const ids = new Set<string>();
     if (!Array.isArray(f.events)) problems.push('flavor.events: očekáváno pole');
     else
@@ -773,6 +775,7 @@ export interface Flavor {
   press: { triggers: Record<string, string>; options: { label: string; effects: Effects }[] };
   investors: string[];
   events: FlavorEvent[];
+  quotes: string[];
 }
 
 export interface ClubBalance {
@@ -804,3 +807,20 @@ export interface ClubBalance {
 }
 
 export type EventsSetting = 'vypnuto' | 'občas' | 'často';
+
+export type CoachBackground = 'mládež' | 'hráč' | 'divize';
+export type ClubProfile = 'akademie' | 'majitel' | 'město';
+
+export interface CareerBalance {
+  backgrounds: Record<CoachBackground, { label: string; text: string; reputation: number; effects: Effects }>;
+  startOffers: number;
+  profiles: Record<ClubProfile, { label: string; cashFactor: number; academyPotBonus: number; effects: Effects }>;
+  freeStartReputation: Record<`${Level}`, number>;
+  reputationByGrade: Record<string, number>;
+  reputationBonus: { promotion: number; title: number; cupWin: number; relegation: number };
+  required: Record<`${Level}`, Record<`${ClubSize}`, number>>;
+  offerChanceByGrade: Record<string, number>;
+  maxOffers: number;
+  sackedOffers: number;
+  sackedReputationLoss: number;
+}

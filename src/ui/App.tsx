@@ -6,6 +6,8 @@ import { CompetitionsScreen } from './screens/Competitions.tsx';
 import { FinanceScreen } from './screens/Finance.tsx';
 import { ScoutingScreen } from './screens/Scouting.tsx';
 import { ClubScreen } from './screens/Club.tsx';
+import { LiveScreen } from './screens/Live.tsx';
+import { CareerScreen } from './screens/Career.tsx';
 import { TransfersScreen } from './screens/Transfers.tsx';
 import { HomeScreen } from './screens/Home.tsx';
 import { MatchScreen } from './screens/Match.tsx';
@@ -40,6 +42,10 @@ function GameScreen({ screen }: { screen: Screen }) {
       return <ScoutingScreen />;
     case 'club':
       return <ClubScreen />;
+    case 'live':
+      return <LiveScreen />;
+    case 'career':
+      return <CareerScreen />;
     default:
       return <HomeScreen />;
   }
@@ -63,7 +69,7 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const s = getAppStore().getState();
-      if (!s.game || s.busy || s.saveDialog || s.screen.name === 'start' || s.screen.name === 'newGame') return;
+      if (!s.game || s.busy || s.saveDialog || s.live || s.screen.name === 'start' || s.screen.name === 'newGame') return;
       if (!isContinueKey(e)) return;
       e.preventDefault();
       void s.continueGame();

@@ -43,3 +43,12 @@ Každá položka: co jsem rozhodl, proč, a kde se to dá změnit.
 - **Kapitán**: tlumí jen propady nálady kabiny. „Propady formy“ by znamenaly měnit známky, ze kterých se počítá vývoj, proto zatím ne.
 - **Texty** (titulky, sociální sítě, události) jsou vlastní, bez reálných médií a osob. České skloňování názvů klubů hra neumí, šablony jsou proto psané tak, aby název stál v 1. pádě.
 - **Otevřené otázky**: (1) Má vedení podle svého vztahu měnit rozpočet (design, tabulka v sekci 14)? Zatím jen ukazuje průběžné hodnocení. (2) Mají se rozlišovat typy majitelů (město, podnikatel, bohatý majitel)? (3) Ceny vstupenek (permanentka, derby, pohár) z designu jsou zatím jedna cena.
+
+## Fáze 8 – živý zápas, kariéra trenéra, ceny sezóny, ladění
+
+- **Živý zápas** je rozdělený hrací den: ostatní zápasy dne se odehrají hned, zápas hráče až po živém přenosu. Výsledky jsou stejné jako v rychlém režimu (test), pořadí v tabulce pro návštěvu se proto bere před zápasem (dřív po něm – nepatrná změna i v rychlém režimu).
+- **Kariéra je výchozí režim** nové hry (design: hlavní režim); volný výběr je druhá záložka. Uložení z dřívějších verzí se převedou na volný výběr.
+- **Reputace trenéra zatím neovlivňuje** hráče ani vedení, jen nabídky klubů. Konec kariéry trenéra (nikdo ho nechce) hra nezná – po vyhazovu vždy přijdou aspoň nabídky ze 3. ligy.
+- **Ceny sezóny** se počítají jen z dat, která hra uchovává: góly a karty z mých zápasů (u ostatních se události neukládají), známky celé soutěže.
+- **Ladění**: kalibrace zápasů 300 sezón – 9/9 cílů z designu, 0 odhadů mimo rozsah; kalibrace světa (po fázi 6) – prvních 5 sezón v mezích.
+- **Otevřené otázky**: (1) Má reputace trenéra ovlivnit ochotu hráčů přestoupit nebo cíle vedení? (2) Má mít kariéra konec (bez nabídek) nebo možnost odpočinku? (3) Mají se ukládat události všech zápasů, aby gól sezóny byl z celé ligy (větší uložení)?

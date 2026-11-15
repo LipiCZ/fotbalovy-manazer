@@ -58,6 +58,8 @@ Směr závislostí: `ui → state → engine → data`. Engine nikdy neimportuje
 - Peníze: každý pohyb jde přes `book()` (finance.ts) – sezónní součty po kategoriích; u klubu hráče i seznam transakcí. Částky v Kč.
 - Volní hráči mají `clubId = FREE_AGENT` ('volny-hrac'), bez smlouvy. Hostovaný hráč má `clubId` hostitele a `loan.fromClubId` mateřského klubu (`ownerOf`).
 - Trh: `game/market.ts` (hodnota, nabídky, smlouvy, volní hráči, AI trh v oknech – tržní dny v `passTime`), skauting `game/scouting.ts`. Hráč manažera vidí CEL/POT cizích hráčů jen jako odhad (`estimateOf`).
+- Hrací den: `beginDay` (posun času, zápasy dne; zápas hráče může zůstat živý jako `LiveMatch`) a `endDay`. `advanceDay` = obojí. Živý den se neukládá (`store.live`).
+- Kariéra trenéra v `GameState.coach` (`game/career.ts`), ceny sezóny `game/awards.ts`.
 - Klub hráče mimo kádr (stadion, vztahy, rozhodnutí, média) je v `GameState.club` (`game/club.ts`); AI kluby ho nemají. Rozhodnutí čekají v `club.decisions`.
 - Kluby mají `id` jako slug (`slavia-praha`, `slavia-praha-b`). B/C týmy mají `parentClubId`.
 - Pozice: kódy `GK CB LB RB DM CM AM LM RM LW RW ST`, v UI česky (BR SO LO PO DZ SZ OZ LZ PZ LK PK ÚT).
@@ -110,4 +112,4 @@ Po změně čísel v `balance.json → match` vždy pusť `npm run calibrate` (s
 | 5 | ekonomika (finance všech klubů, smlouvy, vstupné, výkazy, úvěr, licence), cíle a hodnocení vedení | hotovo |
 | 6 | přestupy a hostování, smlouvy a prodlužování, volní hráči, živý trh AI, skauting a odhady CEL/POT | hotovo |
 | 7 | stadion a město, investor, vztahy (fanoušci, vedení, město, kabina), kapitán, média, tiskovky, sociální sítě, události, ohlášení poslední sezóny | hotovo |
-| 8 | viz `docs/design.md`, sekce 16 | – |
+| 8 | živý režim zápasu, kariéra trenéra (od dna, reputace, nabídky, vyhazov), ceny sezóny, závěrečná kalibrace | hotovo |

@@ -1,12 +1,12 @@
 // Serializable game state (saved as-is). No Maps, no class instances.
 
-import type { Effects, EventsSetting, TrainingIntensity } from '../data.ts';
+import type { ClubProfile, CoachBackground, Effects, EventsSetting, TrainingIntensity } from '../data.ts';
 import type { Budget, ClubFinance, Transaction, TxType } from './finance.ts';
 import type { Tactics } from '../lineup.ts';
 import type { MatchReport, TeamMatchStats } from '../match/types.ts';
 import type { CompetitionId, Fixture, MatchResult, Player, Position } from '../types.ts';
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 /** Compact per-match record kept for every match. */
 export interface MatchSummary extends MatchResult {
@@ -146,6 +146,14 @@ export interface SeasonRecord {
   evaluation?: SeasonEvaluation;
   /** The manager's club: season totals by category and cash at the end. */
   finance?: { season: Partial<Record<TxType, number>>; cashEnd: number };
+  /** Season awards (design, section 14; phase 8). */
+  awards?: Award[];
+}
+
+export interface Award {
+  title: string;
+  text: string;
+  playerId?: string;
 }
 
 export type Grade = 'vynikající' | 'úspěšná' | 'přijatelná' | 'neúspěšná' | 'katastrofa';
@@ -309,6 +317,23 @@ export interface ClubState {
   nextId: number;
 }
 
+export interface JobOffer {
+  clubId: string;
+  profile?: ClubProfile;
+  text: string;
+}
+
+/** The manager's career (design, section 10; phase 8). */
+export interface CoachState {
+  mode: 'career' | 'free';
+  background: CoachBackground | null;
+  reputation: number;
+  history: { seasonYear: number; clubId: string; competitionId: CompetitionId | null; position: number | null; grade: Grade | null }[];
+  offers: JobOffer[];
+  /** Sacked: the manager must take one of the offers before the season goes on. */
+  sacked: boolean;
+}
+
 export interface GameState {
   version: typeof SAVE_VERSION;
   seed: string;
@@ -338,6 +363,7 @@ export interface GameState {
   market: MarketState;
   scouting: ScoutingState;
   club: ClubState | null;
+  coach: CoachState | null;
 }
 
 export function emptyStats(): PlayerSeasonStats {

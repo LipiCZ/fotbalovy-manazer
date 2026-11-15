@@ -22,6 +22,8 @@ function Decisions() {
   if (mine.length > 0) items.push({ text: `${mine.length}× rozjednaný přestup čeká na tebe (protinabídka nebo osobní podmínky)`, label: 'Nabídky', go: () => store.navigate({ name: 'transfers', tab: 'offers' }) });
   if (pending.length > 0) items.push({ text: `${pending.length}× dohodnutý příchod čeká na otevření okna`, label: 'Nabídky', go: () => store.navigate({ name: 'transfers', tab: 'offers' }) });
   if (expiring.length > 0) items.push({ text: `${expiring.length} hráčům končí 30. 6. smlouva`, label: 'Smlouvy', go: () => store.navigate({ name: 'transfers', tab: 'mine' }) });
+  const offers = game.coach?.offers.length ?? 0;
+  if (offers > 0) items.push({ text: game.coach?.sacked ? 'Vedení tě odvolalo – vyber nové angažmá' : `${offers}× nabídka práce od jiného klubu`, label: 'Kariéra', go: () => store.navigate({ name: 'career' }) });
   const club = game.club?.decisions.length ?? 0;
   if (club > 0) items.push({ text: `${club}× rozhodnutí klubu (${game.club!.decisions.map((d) => d.title).join(', ')})`, label: 'Klub', go: () => store.navigate({ name: 'club' }) });
   if (tips.length > 0) items.push({ text: `${tips.length}× tip skauta na talent`, label: 'Skauting', go: () => store.navigate({ name: 'scouting' }) });
@@ -102,6 +104,7 @@ export function HomeScreen() {
               <button className="primary" onClick={() => void store.continueGame()}>
                 Odehrát zápas
               </button>
+              <button onClick={() => store.startLive()}>Hrát živě</button>
               <button onClick={() => store.navigate({ name: 'tactics' })}>Upravit sestavu a taktiku</button>
             </div>
             {game.user?.autoLineup && <p className="help">Sestavu vybírá asistent.</p>}

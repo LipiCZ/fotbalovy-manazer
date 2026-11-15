@@ -1102,5 +1102,111 @@
       "winStreak": 4
     },
     "socialPerMatch": 2
+  },
+  "career": {
+    "_note": "Kariéra trenéra (design, sekce 10; fáze 8). Všechna čísla jsou NÁVRH.",
+    "backgrounds": {
+      "mládež": {
+        "label": "trenér mládeže",
+        "text": "Roky u dorostu: město tě zná jako člověka, který pracuje s dětmi.",
+        "reputation": 15,
+        "effects": {
+          "city": 10
+        }
+      },
+      "hráč": {
+        "label": "bývalý hráč",
+        "text": "Kariéra v nižších soutěžích: kabina tě bere.",
+        "reputation": 20,
+        "effects": {
+          "squad": 10
+        }
+      },
+      "divize": {
+        "label": "trenér divize",
+        "text": "Trénoval jsi chlapy v divizi: fanoušci tě znají z okresu.",
+        "reputation": 12,
+        "effects": {
+          "fans": 10
+        }
+      }
+    },
+    "startOffers": 4,
+    "profiles": {
+      "akademie": {
+        "label": "chudý klub se silnou akademií",
+        "cashFactor": 0.6,
+        "academyPotBonus": 6,
+        "effects": {}
+      },
+      "majitel": {
+        "label": "ambiciózní majitel",
+        "cashFactor": 1.6,
+        "academyPotBonus": 0,
+        "effects": {
+          "board": -10
+        }
+      },
+      "město": {
+        "label": "klub s dobrým vztahem k městu",
+        "cashFactor": 1.0,
+        "academyPotBonus": 0,
+        "effects": {
+          "city": 20
+        }
+      }
+    },
+    "freeStartReputation": {
+      "1": 60,
+      "2": 40,
+      "3": 20
+    },
+    "reputationByGrade": {
+      "vynikající": 12,
+      "úspěšná": 7,
+      "přijatelná": 2,
+      "neúspěšná": -6,
+      "katastrofa": -12
+    },
+    "reputationBonus": {
+      "promotion": 8,
+      "title": 10,
+      "cupWin": 5,
+      "relegation": -6
+    },
+    "required": {
+      "_note": "Minimální reputace trenéra pro nabídku klubu podle úrovně soutěže a velikosti klubu.",
+      "1": {
+        "1": 50,
+        "2": 55,
+        "3": 65,
+        "4": 75,
+        "5": 85
+      },
+      "2": {
+        "1": 30,
+        "2": 32,
+        "3": 35,
+        "4": 40,
+        "5": 45
+      },
+      "3": {
+        "1": 0,
+        "2": 0,
+        "3": 5,
+        "4": 10,
+        "5": 15
+      }
+    },
+    "offerChanceByGrade": {
+      "vynikající": 0.6,
+      "úspěšná": 0.3,
+      "přijatelná": 0.1,
+      "neúspěšná": 0,
+      "katastrofa": 0
+    },
+    "maxOffers": 2,
+    "sackedOffers": 3,
+    "sackedReputationLoss": 5
   }
 }

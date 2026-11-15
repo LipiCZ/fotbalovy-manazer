@@ -12,6 +12,7 @@ import { Rng } from '../rng.ts';
 import { emptyMarket, freeAgentTick } from './market.ts';
 import { emptyScouting, refreshCandidates } from './scouting.ts';
 import { initClub } from './club.ts';
+import { initCoach } from './career.ts';
 
 export const SAVE_FORMAT = 'fotbalovy-manazer-save';
 
@@ -74,7 +75,7 @@ export function parseSave(input: string | unknown, data: GameData): { save: Save
     }
   }
   if (!isObj(raw) || raw.format !== SAVE_FORMAT) throw new SaveError('Tohle není uložená hra Fotbalového manažera CZ.');
-  if (raw.version !== SAVE_VERSION && ![1, 2, 3, 4].includes(raw.version as number))
+  if (raw.version !== SAVE_VERSION && ![1, 2, 3, 4, 5].includes(raw.version as number))
     throw new SaveError(`Uložená hra má verzi ${String(raw.version)}, tahle verze hry umí načíst verze 1–${SAVE_VERSION}.`);
   if (!isObj(raw.game)) throw new SaveError('Uložená hra je poškozená: chybí stav hry.');
   const warnings: string[] = [];
@@ -96,9 +97,17 @@ export function parseSave(input: string | unknown, data: GameData): { save: Save
   if (raw.version === 4) {
     const g = raw.game as unknown as GameState;
     g.club = initClub(g, data);
+    (g as { version: number }).version = 5;
+    raw.version = 5;
+    warnings.push('Uložená hra byla převedena na verzi s klubem: stadion, vztahy a média začínají z výchozího stavu.');
+  }
+  if (raw.version === 5) {
+    const g = raw.game as unknown as GameState;
+    g.coach = null;
+    if (g.userClubId) initCoach(g, data, { mode: 'free' });
     g.version = SAVE_VERSION;
     raw.version = SAVE_VERSION;
-    warnings.push('Uložená hra byla převedena na verzi s klubem: stadion, vztahy a média začínají z výchozího stavu.');
+    warnings.push('Uložená hra byla převedena na verzi s kariérou trenéra (volný výběr, reputace podle soutěže).');
   }
   const game = raw.game as Record<string, unknown>;
 

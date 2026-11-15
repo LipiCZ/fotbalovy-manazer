@@ -53,5 +53,14 @@
     {"id": "zpevak", "levels": [1, 2], "title": "Hymna od místní kapely", "text": "Místní kapela nabízí novou klubovou hymnu. Ukázka zní… zajímavě.",
       "options": [{"label": "Hrát ji před zápasy", "effects": {"fans": -1, "city": 2}}, {"label": "Zůstat u staré hymny", "effects": {"fans": 1}}]},
     {"id": "kalendar", "levels": [2, 3], "title": "Charitativní kalendář", "text": "Hráči nafotili charitativní kalendář. Brankář na obálce, prý kvůli rukavicím.", "effects": {"cash": 80000, "cashNote": "charitativní kalendář", "city": 2, "squad": 1}}
+  ],
+  "quotes": [
+      "„Fotbal se hraje devadesát minut, my jsme ho hráli asi tak sedmdesát.“ – {player}",
+      "„Míč byl kulatý, ale nějak nám pořád utíkal.“ – {player}",
+      "„Trenér říkal, ať střílím. Tak jsem střílel. Na tribunu.“ – {player}",
+      "„Tráva byla mokrá, soupeř taky, ale my víc.“ – {player}",
+      "„Když nedáš, dostaneš. Dneska jsme udělali obojí.“ – {player}",
+      "„Penaltu jsem kopal levou, protože pravá byla unavená.“ – {player}",
+      "„V kabině byla skvělá nálada. Pak začal zápas.“ – {player}"
   ]
 }

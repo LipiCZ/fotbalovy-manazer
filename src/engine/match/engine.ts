@@ -507,6 +507,57 @@ function assistant(state: MatchState, team: TeamState): void {
   }
 }
 
+// ---------------------------------------------------------------- live mode (phase 8)
+
+/** Live mode: the manager substitutes a specific player. Returns an error in Czech or null. */
+export function liveSubstitute(state: MatchState, side: Side, outPlayerId: string, inPlayerId: string): string | null {
+  const team = state[side];
+  if (state.finished) return 'Zápas skončil.';
+  const subs = state.ctx.balance.match.subs;
+  if (team.subsUsed >= subs.max) return `Už jsi vystřídal ${subs.max}×.`;
+  if (!canSubstitute(state, team)) return 'Další střídání teď nejde (počet přerušení hry je vyčerpaný).';
+  const idx = team.pitch.findIndex((op) => op?.player.id === outPlayerId);
+  if (idx < 0) return 'Hráč není na hřišti.';
+  const incoming = team.bench.find((p) => p.id === inPlayerId);
+  if (!incoming) return 'Hráč není na lavičce.';
+  const outgoing = team.pitch[idx] as OnPitch;
+  outgoing.line.conditionEnd = outgoing.condition;
+  const slot = team.sheet.slots[idx] as Position;
+  team.bench = team.bench.filter((p) => p !== incoming);
+  const line = newLine(incoming, team.sheet.clubId, team.side, slot, false);
+  state.lines.push(line);
+  team.pitch[idx] = makeOnPitch(incoming, slot, line, state.ctx.balance, state.ctx.date);
+  team.subsUsed++;
+  team.stats.subs++;
+  team.windowMinutes.add(clockOf(state, state.step).minute);
+  pushEvent(state, { type: 'sub', side, playerId: outPlayerId, otherPlayerId: inPlayerId });
+  return null;
+}
+
+/** Live mode: the manager changes style, mentality or pressing (the assistant stops deciding). */
+export function liveTactics(state: MatchState, side: Side, patch: Partial<Pick<Tactics, 'style' | 'mentality' | 'pressing'>>): void {
+  const team = state[side];
+  state.ctx.autopilot = { home: true, away: true, ...state.ctx.autopilot, [side]: false };
+  if (patch.mentality && patch.mentality !== team.tactics.mentality) {
+    team.tactics.mentality = patch.mentality;
+    team.baseMentality = patch.mentality;
+    pushEvent(state, { type: 'mentality', side, mentality: patch.mentality });
+  }
+  if (patch.style) team.tactics.style = patch.style;
+  if (patch.pressing) team.tactics.pressing = patch.pressing;
+}
+
+/** Players of a side on the pitch (with slot and condition) and on the bench, for the live screen. */
+export function liveTeam(state: MatchState, side: Side): { onPitch: { player: Player; slot: Position; condition: number }[]; bench: Player[]; subsLeft: number; tactics: Tactics } {
+  const team = state[side];
+  return {
+    onPitch: onPitch(team).map((op) => ({ player: op.player, slot: op.slot, condition: op.condition })),
+    bench: team.bench,
+    subsLeft: state.ctx.balance.match.subs.max - team.subsUsed,
+    tactics: team.tactics,
+  };
+}
+
 // ---------------------------------------------------------------- minute
 
 /** Simulates one minute. Returns the events of that minute. */

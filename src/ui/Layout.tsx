@@ -14,6 +14,7 @@ const NAV: { label: string; screen: Screen }[] = [
   { label: 'Přestupy', screen: { name: 'transfers' } },
   { label: 'Skauting', screen: { name: 'scouting' } },
   { label: 'Klub', screen: { name: 'club' } },
+  { label: 'Kariéra', screen: { name: 'career' } },
   { label: 'Finance', screen: { name: 'finance' } },
 ];
 
@@ -21,6 +22,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const { game, data } = useGame();
   const screen = useApp((s) => s.screen);
   const busy = useApp((s) => s.busy);
+  const live = useApp((s) => s.live);
   const club = clubOf(data, game.userClubId);
   const { accent, onAccent } = club ? clubAccent(club) : { accent: '#1f6f43', onAccent: '#fff' };
   const store = getAppStore().getState();
@@ -41,6 +43,12 @@ export function Layout({ children }: { children: ReactNode }) {
           </button>
         )}
         <span className="spacer" />
+        {live ? (
+          <button className="primary" onClick={() => store.navigate({ name: 'live' })}>
+            Živý zápas běží
+          </button>
+        ) : (
+          <>
         <button onClick={() => store.setSaveDialog(true)}>Uložit / načíst</button>
         {!game.finished && (
           <button onClick={() => void store.skipToEnd()} disabled={busy !== null} title="Odehraje zbytek sezóny, sestavy vybírá asistent podle tvé taktiky">
@@ -51,6 +59,8 @@ export function Layout({ children }: { children: ReactNode }) {
           {game.finished ? 'Konec sezóny' : next ? `Pokračovat · ${next.label.split(', ').at(-1)}` : 'Pokračovat'}
           <kbd>mezerník</kbd>
         </button>
+          </>
+        )}
       </header>
       <nav className="sidebar" aria-label="hlavní menu">
         {NAV.map((n) => (

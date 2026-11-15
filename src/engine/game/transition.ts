@@ -23,6 +23,8 @@ import { allowedGroups, canPlayIn, levelOfCompetition, membersOf, thirdLevelGrou
 import { aiMarketTick, dropFromUserLineup, endLoans, expireContracts, isUserOrg, ownerOf, toFreeAgent, writeOffRegistration } from './market.ts';
 import { exPlayerScoutOffer } from './scouting.ts';
 import { clubSeasonEnd, clubSeasonStart, lastSeasonOutcome } from './club.ts';
+import { coachSeasonEnd } from './career.ts';
+import { seasonAwards } from './awards.ts';
 import { emptyStats, type GameState, type Movement, type NewsItem, type SeasonRecord } from './state.ts';
 
 const nameOf = (p: Player) => `${p.firstName} ${p.lastName}`;
@@ -174,6 +176,15 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
     }
     const f = state.finances[state.userClubId];
     if (f) record.finance = { season: { ...f.season }, cashEnd: f.cash };
+    record.awards = seasonAwards(state, data);
+    // Coach career: reputation, sacking, offers (phase 8).
+    const comp = state.membership[state.userClubId];
+    coachSeasonEnd(
+      state,
+      data,
+      { evaluation: evaluation ?? null, movement: mv, title: comp !== undefined && standings[comp]?.[0] === state.userClubId, cupWin: state.cup?.winnerId === state.userClubId },
+      news,
+    );
   }
 
   // The manager's club: city deal, investor (before the new membership).
