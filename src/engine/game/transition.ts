@@ -5,7 +5,7 @@
 
 import type { GameData } from '../data.ts';
 import { overall } from '../players/rating.ts';
-import type { Club, CompetitionId, Player } from '../types.ts';
+import type { Club, CompetitionId, Player, Position } from '../types.ts';
 import {
   buildCompetitions,
   finalStandings,
@@ -153,7 +153,6 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
   const newStart = seasonStart(state.seasonYear + 1);
   passTime(state, data, newStart, news);
   const rng = seasonRngOf(state).fork('transition');
-  const leagueCel = leagueCelLookup(state, data);
 
   // Career archive, exceptional seasons, retirements.
   const pr = balance.development.potentialRaise;
@@ -189,7 +188,18 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
     const decay = balance.development.potentialDecay;
     const cel = overall(p, balance);
     if (exactAge(p.birthDate, newStart) >= decay.fromAge && p.pot > cel) p.pot = Math.max(Math.round(cel), Math.round(p.pot - (p.pot - cel) * decay.share));
-    const chance = retirementChance(exactAge(p.birthDate, newStart), overall(p, balance), leagueCel(p.clubId), balance);
+    const chance = retirementChance(
+      {
+        age: exactAge(p.birthDate, newStart),
+        position: p.positions[0] as Position,
+        avgRating: s.apps > 0 ? s.ratingSum / s.apps : null,
+        minutesShare: p.career.at(-1)?.minutesShare ?? 0,
+        level: state.membership[p.clubId] ? levelOfCompetition(data, state.membership[p.clubId] as CompetitionId) : null,
+        professionalism: p.hidden.professionalism,
+        injuryDays: p.state.seasonInjuryDays ?? 0,
+      },
+      balance,
+    );
     if (chance > 0 && rng.fork(p.id).chance(chance)) {
       retired.add(p.id);
       if (p.clubId === state.userClubId) news.push({ date: newStart, kind: 'season', playerId: p.id, text: `${nameOf(p)} (${Math.floor(exactAge(p.birthDate, newStart))}) ukončil kariéru.` });
@@ -211,6 +221,7 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
   // Reset the season state of players.
   for (const p of state.players) {
     p.state.condition = 100;
+    p.state.seasonInjuryDays = p.state.injury ? p.state.injury.daysLeft : 0;
     if (balance.discipline.resetYellowsAtSeasonEnd) p.state.yellowCards = 0;
   }
   state.history.push(record);

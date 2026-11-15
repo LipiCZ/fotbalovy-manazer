@@ -46,6 +46,10 @@ interface OnPitch {
   header: number;
   condition: number;
   formFactor: number;
+  /** Condition drain multiplier by age (older players tire faster). */
+  fatigue: number;
+  /** Injury risk multiplier (higher shortly after returning from an injury). */
+  injuryRisk: number;
 }
 
 interface TeamState {
@@ -84,15 +88,31 @@ const BANDS: Band[] = ['def', 'mid', 'att'];
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 function emptyStats(): TeamMatchStats {
-  return { goals: 0, shots: 0, shotsOnTarget: 0, xg: 0, possession: 0, fouls: 0, yellow: 0, red: 0, corners: 0, penalties: 0, subs: 0 };
+  return { goals: 0, shots: 0, shotsOnTarget: 0, xg: 0, possession: 0, fouls: 0, yellow: 0, red: 0, corners: 0, penalties: 0, penaltiesScored: 0, subs: 0 };
 }
 
 function formFactor(player: Player, balance: Balance): number {
   const f = balance.form;
   const recent = player.state.recentRatings.slice(-f.window);
-  if (recent.length === 0) return 1;
-  const avg = recent.reduce((s, r) => s + r, 0) / recent.length;
+  // After an injury the form is worse for a few matches (design, section 12).
+  const returnPenalty = (player.state.returnFormMatches ?? 0) > 0 ? balance.injuries.afterReturn.formRatingPenalty : 0;
+  if (recent.length === 0) return 1 + clamp(-returnPenalty * f.effectPerPoint, -f.maxEffect, f.maxEffect);
+  const avg = recent.reduce((s, r) => s + r, 0) / recent.length - returnPenalty;
   return 1 + clamp((avg - f.neutral) * f.effectPerPoint, -f.maxEffect, f.maxEffect);
+}
+
+function interpolatePoints(points: [number, number][], x: number): number {
+  const first = points[0];
+  const last = points[points.length - 1];
+  if (!first || !last) return 1;
+  if (x <= first[0]) return first[1];
+  if (x >= last[0]) return last[1];
+  for (let i = 1; i < points.length; i++) {
+    const [x1, y1] = points[i] as [number, number];
+    const [x0, y0] = points[i - 1] as [number, number];
+    if (x <= x1) return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
+  }
+  return last[1];
 }
 
 /** Young players in their first months of senior football perform a little worse (design, section 5). */
@@ -121,6 +141,9 @@ function makeOnPitch(player: Player, slot: Position, line: PlayerMatchLine, bala
     header: 0.6 * a.heading + 0.4 * a.jumping,
     condition: player.state.condition,
     formFactor: formFactor(player, balance) * adaptationFactor(player, date, balance),
+    fatigue: date ? interpolatePoints(balance.condition.ageFatigue.byAge, ageOn(player.birthDate, date)) : 1,
+    injuryRisk:
+      date && player.state.reinjuryUntil && player.state.reinjuryUntil >= date ? balance.injuries.afterReturn.reinjuryMultiplier : 1,
   };
 }
 
@@ -351,8 +374,8 @@ function sendOff(state: MatchState, team: TeamState, op: OnPitch, kind: 'secondY
 
 function injure(state: MatchState, team: TeamState, op: OnPitch): void {
   const { balance, rng } = state.ctx;
-  const sev = rng.weightedPick(balance.injuries.severities, balance.injuries.severities.map((s) => s.weight));
-  const injury = { type: rng.pick(sev.types), daysLeft: rng.int(sev.minDays, sev.maxDays) };
+  const kind = rng.weightedPick(balance.injuries.types, balance.injuries.types.map((t) => t.weight));
+  const injury = { type: rng.pick(kind.names), daysLeft: rng.int(kind.minDays, kind.maxDays) };
   op.line.injury = injury;
   op.line.conditionEnd = op.condition;
   pushEvent(state, { type: 'injury', side: team.side, playerId: op.player.id, injury });
@@ -403,6 +426,7 @@ function resolveShot(state: MatchState, att: TeamState, def: TeamState, kind: Sh
   const others = ops.filter((o) => o !== shooter);
 
   if (rng.chance(pGoal)) {
+    if (kind === 'penalty') att.stats.penaltiesScored++;
     att.stats.goals++;
     att.stats.shotsOnTarget++;
     shooter.line.goals++;
@@ -542,14 +566,14 @@ export function stepMinute(state: MatchState): MatchEvent[] {
   for (const team of [state.home, state.away]) {
     const ops = onPitch(team);
     const hazards = ops.map(
-      (o) => inj.hazardPerPlayerMinute * (o.player.hidden.injuryProneness / 50) * (1 + (inj.fatigueEffect * (100 - o.condition)) / 100),
+      (o) => inj.hazardPerPlayerMinute * o.injuryRisk * (o.player.hidden.injuryProneness / 50) * (1 + (inj.fatigueEffect * (100 - o.condition)) / 100),
     );
     const total = hazards.reduce((s, h) => s + h, 0);
     if (total > 0 && rng.chance(total)) injure(state, team, rng.weightedPick(ops, hazards));
 
     const drainBase = balance.condition.drainPerMinute * t.pressing[team.tactics.pressing].drain;
     for (const o of onPitch(team)) {
-      o.condition = Math.max(0, o.condition - drainBase * (1.3 - (o.player.attributes.stamina / 100) * balance.condition.staminaEffect));
+      o.condition = Math.max(0, o.condition - drainBase * o.fatigue * (1.3 - (o.player.attributes.stamina / 100) * balance.condition.staminaEffect));
       o.line.conditionEnd = o.condition;
     }
     assistant(state, team);

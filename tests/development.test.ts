@@ -131,10 +131,33 @@ describe('akademie a konce kariér', () => {
     expect(new Set(state.players.map((p) => p.id)).size).toBe(state.players.length);
   });
 
-  it('konce kariér: mladí nekončí, ve 37 skoro všichni', () => {
-    expect(retirementChance(28, 60, 60, balance)).toBe(0);
-    expect(retirementChance(33, 60, 60, balance)).toBeGreaterThan(0.05);
-    expect(retirementChance(37, 60, 60, balance)).toBeGreaterThan(0.7);
-    expect(retirementChance(33, 45, 60, balance)).toBeGreaterThan(retirementChance(33, 60, 60, balance));
+  it('konce kariér: tabulka podle pozic ze zadání (design, sekce 5)', () => {
+    const base = { avgRating: 6.5, minutesShare: 0.6, level: 1 as const, professionalism: 50, injuryDays: 0 };
+    const c = (age: number, position: 'GK' | 'CB' | 'CM' | 'ST', extra = {}) => retirementChance({ ...base, age, position, ...extra }, balance);
+    expect(c(32.5, 'ST')).toBe(0);
+    expect(c(33.2, 'ST')).toBeCloseTo(0.15);
+    expect(c(33.2, 'CM')).toBeCloseTo(0.1);
+    expect(c(33.2, 'CB')).toBe(0);
+    expect(c(34, 'CB')).toBeCloseTo(0.1);
+    expect(c(36, 'GK')).toBe(0);
+    expect(c(37, 'GK')).toBeCloseTo(0.15);
+    expect(c(40, 'GK')).toBeCloseTo(0.75);
+    expect(c(41, 'GK')).toBe(1);
+    expect(c(38, 'ST')).toBe(1);
+    expect(c(45, 'CM')).toBe(1);
+  });
+
+  it('konce kariér: násobiče se násobí a výsledek je 0–1', () => {
+    const base = { age: 35, position: 'CM' as const, avgRating: 6.5, minutesShare: 0.6, level: 1 as const, professionalism: 50, injuryDays: 0 };
+    const c = (extra = {}) => retirementChance({ ...base, ...extra }, balance);
+    expect(c()).toBeCloseTo(0.35);
+    expect(c({ avgRating: 7.1, minutesShare: 0.8 })).toBeCloseTo(0.175); // super sezóna ×0,5
+    expect(c({ avgRating: 7.1, minutesShare: 0.5 })).toBeCloseTo(0.35); // super známka, ale málo minut na super sezónu
+    expect(c({ level: 3 })).toBeCloseTo(0.21); // 3. liga ×0,6
+    expect(c({ professionalism: 80 })).toBeCloseTo(0.28); // ×0,8
+    expect(c({ minutesShare: 0.2 })).toBeCloseTo(0.525); // málo minut ×1,5
+    expect(c({ injuryDays: 120 })).toBeCloseTo(0.525); // dlouhé zranění ×1,5
+    expect(c({ contractNextSeason: true })).toBeCloseTo(0.245); // smlouva ×0,7 (fáze 6)
+    expect(c({ age: 37, minutesShare: 0.2, injuryDays: 120 })).toBe(1); // 0,75 × 1,5 × 1,5 omezeno na 1
   });
 });

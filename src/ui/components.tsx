@@ -61,8 +61,17 @@ export function StatusIcons({ player }: { player: Player }) {
   const s = player.state;
   const parts: ReactNode[] = [];
   if (s.injury) parts.push(<span key="i" className="bad" title={`${s.injury.type}, ještě ${s.injury.daysLeft} dní`}>✚ {s.injury.daysLeft} d</span>);
+  else if ((s.returnFormMatches ?? 0) > 0) parts.push(<span key="r" className="warn" title="po zranění: horší forma a vyšší riziko nového zranění">↺ po zranění</span>);
   if (s.suspensionMatches > 0) parts.push(<span key="s" className="bad" title="stopka">🟥 {s.suspensionMatches}</span>);
-  if (s.yellowCards > 0) parts.push(<span key="y" title="žluté karty v sezóně">🟨 {s.yellowCards}</span>);
+  if (s.yellowCards > 0) {
+    const nearBan = s.yellowCards % 4 === 3;
+    parts.push(
+      <span key="y" className={nearBan ? 'warn' : ''} title={nearBan ? 'další žlutá karta znamená stopku' : 'žluté karty v sezóně'}>
+        🟨 {s.yellowCards}
+        {nearBan ? ' ⚠' : ''}
+      </span>,
+    );
+  }
   return <span className="row">{parts}</span>;
 }
 

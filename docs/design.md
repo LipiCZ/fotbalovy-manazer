@@ -162,7 +162,7 @@ Doplňky:
 - Místo konce kariéry může zkušený hráč odejít dohrát do nižší soutěže (fáze 6, potřebuje přestupy a volné hráče).
 - Po konci kariéry může klub dostat nabídku, že hráč zůstane jako trenér mládeže, skaut nebo asistent; jeho schopnosti se odvodí z hráčských atributů (fáze 6 spolu se skauty).
 
-*Rozpor s dosavadním stavem:* kód z fáze 4 ukončuje kariéry podle věku bez ohledu na pozici už od 31 let (3 %) a slabší hráče dřív. Nová tabulka začíná později (33–37 let) a hráče 3. ligy naopak drží déle (×0,6). Kalibrace světa ve fázi 4 přitom ukázala, že při řídkých koncích kariér svět stárne. Ve fázi 4b se proto nová tabulka musí znovu ověřit přes `npm run calibrate:world` a vyvážit jinde, nejspíš tím, že AI uvolňuje staré a slabé hráče. Ti do fáze 6 ze hry zmizí, od fáze 6 se z nich stanou volní hráči a uplatní se pravidlo „32+ bez nabídky 6 měsíců“. Pravidlo „slabší končí dřív“ se ve fázi 4b zruší.
+*Rozpor s dosavadním stavem:* kód z fáze 4 ukončuje kariéry podle věku bez ohledu na pozici už od 31 let (3 %) a slabší hráče dřív. Nová tabulka začíná později (33–37 let) a hráče 3. ligy naopak drží déle (×0,6). Kalibrace světa ve fázi 4 přitom ukázala, že při řídkých koncích kariér svět stárne. Ve fázi 4b se proto nová tabulka musí znovu ověřit přes `npm run calibrate:world` a vyvážit jinde, nejspíš tím, že AI uvolňuje staré a slabé hráče. Ti do fáze 6 ze hry zmizí, od fáze 6 se z nich stanou volní hráči a uplatní se pravidlo „32+ bez nabídky 6 měsíců“. Pravidlo „slabší končí dřív“ se ve fázi 4b zruší. **Stav po fázi 4b:** zavedeno; průměrný věk seniorů ve světě stoupl o ~1 rok (na ~26,4) a pak se ustálil, síla soutěží za 5 sezón zůstává v mezích (`npm run calibrate:world`).
 
 *Mezera v designu:* chybí správa štábu (asistent, trenér mládeže). Kvalita asistenta je zmíněná v sekcích 3 a 12, ale najímání nikde, a nabídka „zůstat jako trenér nebo skaut“ ho potřebuje. Navrhuji štáb doplnit ve fázi 6 spolu se skauty.
 
@@ -548,7 +548,7 @@ fotbalovy-manazer/
 | 2 | model hráče (CEL, TS, FS, forma, kondice), simulace zápasu, známky, kalibrace | 1 000 sezón dá průměr gólů a domácích výher v cílovém rozsahu |
 | 3 | základní UI: Domů, Soupiska, Profil, Taktika, rychlý zápas, Soutěže, Pokračovat, ukládání | **MVP: odehraju celou sezónu** (hotovo) |
 | 4 | vývoj hráčů, stárnutí, mládež, B-týmy, přechod sezóny, postupy, nadstavba, baráže, MOL Cup | odehraju 5 sezón za sebou (hotovo) |
-| 4b | doplňky inspirované CSM k hotovým částem: konce kariér podle pozic, zranění podle typů a návrat po zranění, únava podle věku, upozornění na 3 žluté, kalibrace penalt | `calibrate` a `calibrate:world` projdou |
+| 4b | doplňky inspirované CSM k hotovým částem: konce kariér podle pozic, zranění podle typů a návrat po zranění, únava podle věku, upozornění na 3 žluté, kalibrace penalt | `calibrate` a `calibrate:world` projdou (hotovo) |
 | 5 | ekonomika: rozpočet, platy, vstupné, transakce, výkazy, cash flow; cíle vedení a jejich hodnocení | sezónní report s výkazy a hodnocením sezóny |
 | 6 | přestupy, smlouvy, přestupní listina, volní hráči, skauting, živý trh AI | koupím, prodám a najdu talent |
 | 7 | stadion, město, investor, vztahy, média, humor | vytáhnu klub o ligu výš |

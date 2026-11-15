@@ -443,45 +443,46 @@
     "maxEffect": 0.03
   },
   "injuries": {
-    "_note": "Riziko za hráče a minutu × náchylnost/50 × (1 + únava). Délky zranění ve dnech.",
+    "_note": "Riziko za hráče a minutu × náchylnost/50 × (1 + únava). Typy zranění podle délky (design, sekce 12; doplněk inspirovaný CSM): délky ze zadání, váhy a návrat po zranění jsou návrh.",
     "hazardPerPlayerMinute": 0.00014,
     "fatigueEffect": 1.0,
-    "severities": [
+    "types": [
       {
-        "weight": 0.5,
-        "minDays": 3,
-        "maxDays": 10,
-        "types": ["naražené koleno", "natažený sval", "výron kotníku", "otřes mozku"]
+        "name": "lehké",
+        "minDays": 7,
+        "maxDays": 14,
+        "weight": 0.55,
+        "names": ["naražené koleno", "natažený sval", "výron kotníku", "otřes mozku"]
       },
       {
-        "weight": 0.35,
-        "minDays": 11,
-        "maxDays": 30,
-        "types": ["natržený sval", "podvrtnutý kotník", "zhmožděné žebro"]
+        "name": "střední",
+        "minDays": 21,
+        "maxDays": 42,
+        "weight": 0.3,
+        "names": ["natržený sval", "podvrtnutý kotník", "zhmožděné žebro"]
       },
       {
+        "name": "těžké",
+        "minDays": 60,
+        "maxDays": 180,
         "weight": 0.12,
-        "minDays": 31,
-        "maxDays": 90,
-        "types": ["natržené vazy", "únavová zlomenina", "poranění menisku"]
+        "names": ["natržené vazy", "únavová zlomenina", "poranění menisku"]
       },
-      {"weight": 0.03, "minDays": 91, "maxDays": 240, "types": ["přetržený křížový vaz", "zlomenina nohy"]}
-    ],
-    "planned": {
-      "_note": "Doplněk inspirovaný CSM (design, sekce 12), fáze 4b. Nahradí severities výše. Délky ze zadání, váhy a návrat po zranění jsou NÁVRH (doplněno, ne ze zadání) (váhy drží zhruba dnešní počet a délku zranění).",
-      "types": [
-        {"name": "lehké", "minDays": 7, "maxDays": 14, "weight": 0.55},
-        {"name": "střední", "minDays": 21, "maxDays": 42, "weight": 0.3},
-        {"name": "těžké", "minDays": 60, "maxDays": 180, "weight": 0.12},
-        {"name": "velmi těžké", "minDays": 180, "maxDays": 270, "weight": 0.03}
-      ],
-      "afterReturn": {
-        "_note": "NÁVRH (doplněno, ne ze zadání)",
-        "condition": 75,
-        "formRatingPenalty": 0.3,
-        "reinjuryDays": 28,
-        "reinjuryMultiplier": 2.0
+      {
+        "name": "velmi těžké",
+        "minDays": 180,
+        "maxDays": 270,
+        "weight": 0.03,
+        "names": ["přetržený křížový vaz", "zlomenina nohy"]
       }
+    ],
+    "afterReturn": {
+      "_note": "Po návratu: kondice nejvýš condition, forma o formRatingPenalty horší po formMatches zápasů, riziko znovuzranění × reinjuryMultiplier po reinjuryDays dní (návrh).",
+      "condition": 75,
+      "formRatingPenalty": 0.3,
+      "formMatches": 3,
+      "reinjuryDays": 28,
+      "reinjuryMultiplier": 2.0
     }
   },
   "discipline": {
@@ -644,56 +645,49 @@
     "reserveMaxAge": 22
   },
   "retirement": {
-    "_note": "Pravděpodobnost konce kariéry na konci sezóny podle věku; slabší hráči končí dřív.",
-    "byAge": [[31, 0.03], [32, 0.06], [33, 0.14], [34, 0.25], [35, 0.4], [36, 0.6], [37, 0.8], [38, 0.95]],
-    "weakBonus": 0.2,
-    "weakFromAge": 30,
-    "weakCelBelowLeague": 10,
-    "planned": {
-      "_note": "Doplněk inspirovaný CSM (design, sekce 5). Kód zatím používá byAge/weakBonus výše; ve fázi 4b je nahradí tato tabulka (smlouva a volní hráči ve fázi 6, ohlášení poslední sezóny ve fázi 7). Šance pro věk mezi body: platí nejbližší nižší věk; nad posledním bodem 100 %.",
-      "byPosition": {
-        "GK": [[37, 0.15], [38, 0.3], [39, 0.5], [40, 0.75], [41, 1.0]],
-        "DF": [[34, 0.1], [35, 0.2], [36, 0.35], [37, 0.55], [38, 0.75], [39, 1.0]],
-        "MF": [[33, 0.1], [34, 0.2], [35, 0.35], [36, 0.55], [37, 0.75], [38, 1.0]],
-        "FW": [[33, 0.15], [34, 0.25], [35, 0.4], [36, 0.6], [37, 0.8], [38, 1.0]]
+    "_note": "Konec kariéry na konci sezóny (design, sekce 5; doplněk inspirovaný CSM). Základní šance podle věku a skupiny pozic (platí nejbližší nižší uvedený věk, za posledním 100 %), pak násobiče, výsledek 0–1. Smlouva a volní hráči od fáze 6, ohlášení poslední sezóny ve fázi 7.",
+    "byPosition": {
+      "GK": [[37, 0.15], [38, 0.3], [39, 0.5], [40, 0.75], [41, 1.0]],
+      "DF": [[34, 0.1], [35, 0.2], [36, 0.35], [37, 0.55], [38, 0.75], [39, 1.0]],
+      "MF": [[33, 0.1], [34, 0.2], [35, 0.35], [36, 0.55], [37, 0.75], [38, 1.0]],
+      "FW": [[33, 0.15], [34, 0.25], [35, 0.4], [36, 0.6], [37, 0.8], [38, 1.0]]
+    },
+    "positionGroups": {
+      "_note": "NÁVRH (doplněno, ne ze zadání)",
+      "GK": ["GK"],
+      "DF": ["CB", "LB", "RB"],
+      "MF": ["DM", "CM", "AM", "LM", "RM"],
+      "FW": ["LW", "RW", "ST"]
+    },
+    "multipliers": {
+      "_note": "Násobí se, výsledek se omezí na 0–1.",
+      "superSeason": {"factor": 0.5, "minAvgRating": 7.0, "minMinutesShare": 0.7},
+      "contractNextSeason": {"factor": 0.7},
+      "thirdLevel": {"factor": 0.6},
+      "highProfessionalism": {
+        "factor": 0.8,
+        "minProfessionalism": 75,
+        "_note": "hranice 75 je NÁVRH (doplněno, ne ze zadání)"
       },
-      "positionGroups": {
-        "_note": "NÁVRH (doplněno, ne ze zadání)",
-        "GK": ["GK"],
-        "DF": ["CB", "LB", "RB"],
-        "MF": ["DM", "CM", "AM", "LM", "RM"],
-        "FW": ["LW", "RW", "ST"]
-      },
-      "multipliers": {
-        "_note": "Násobí se, výsledek se omezí na 0–1.",
-        "superSeason": {"factor": 0.5, "minAvgRating": 7.0, "minMinutesShare": 0.7},
-        "contractNextSeason": {"factor": 0.7},
-        "thirdLevel": {"factor": 0.6},
-        "highProfessionalism": {
-          "factor": 0.8,
-          "minProfessionalism": 75,
-          "_note": "hranice 75 je NÁVRH (doplněno, ne ze zadání)"
-        },
-        "fewMinutes": {"factor": 1.5, "maxMinutesShare": 0.3},
-        "longInjury": {"factor": 1.5, "minDays": 90}
-      },
-      "freeAgentCertain": {"minAge": 32, "monthsWithoutOffer": 6},
-      "lastSeasonAnnouncement": {
-        "_note": "NÁVRH (doplněno, ne ze zadání): v lednu ohlásí hráč, jehož šance na konec je aspoň minChance; přemluvit jde s malou šancí.",
-        "month": 1,
-        "minChance": 0.5,
-        "persuadeSuccess": 0.15
-      },
-      "dropDownInstead": {
-        "_note": "NÁVRH (doplněno, ne ze zadání): místo konce kariéry odejde dohrát do nižší soutěže, pokud je jeho CEL aspoň o minCelAboveLeague nad úrovní nižší soutěže.",
-        "chance": 0.35,
-        "minCelAboveLeague": 3
-      },
-      "staffOffer": {
-        "_note": "NÁVRH (doplněno, ne ze zadání): po konci kariéry nabídka zůstat v klubu; schopnosti se odvodí z atributů (fáze 6).",
-        "chance": 0.2,
-        "roles": ["trenér mládeže", "skaut", "asistent"]
-      }
+      "fewMinutes": {"factor": 1.5, "maxMinutesShare": 0.3},
+      "longInjury": {"factor": 1.5, "minDays": 90}
+    },
+    "freeAgentCertain": {"minAge": 32, "monthsWithoutOffer": 6},
+    "lastSeasonAnnouncement": {
+      "_note": "NÁVRH (doplněno, ne ze zadání): v lednu ohlásí hráč, jehož šance na konec je aspoň minChance; přemluvit jde s malou šancí.",
+      "month": 1,
+      "minChance": 0.5,
+      "persuadeSuccess": 0.15
+    },
+    "dropDownInstead": {
+      "_note": "NÁVRH (doplněno, ne ze zadání): místo konce kariéry odejde dohrát do nižší soutěže, pokud je jeho CEL aspoň o minCelAboveLeague nad úrovní nižší soutěže.",
+      "chance": 0.35,
+      "minCelAboveLeague": 3
+    },
+    "staffOffer": {
+      "_note": "NÁVRH (doplněno, ne ze zadání): po konci kariéry nabídka zůstat v klubu; schopnosti se odvodí z atributů (fáze 6).",
+      "chance": 0.2,
+      "roles": ["trenér mládeže", "skaut", "asistent"]
     }
   },
   "training": {
@@ -702,7 +696,7 @@
     "normal": {"growth": 1.0, "recovery": 1.0, "injuryPerPlayerDay": 0.0001},
     "hard": {"growth": 1.15, "recovery": 0.85, "injuryPerPlayerDay": 0.0003},
     "assistant": {"hardIfDaysToMatch": 6, "lightIfDaysToMatch": 3},
-    "injuryDays": [3, 21]
+    "_injuryNote": "Zranění z tréninku je vždy typu lehké (injuries.types[0])."
   },
   "rotation": {"_note": "AI nenasadí do základu hráče s nižší kondicí, pokud má náhradu.", "minCondition": 82},
   "calibration": {

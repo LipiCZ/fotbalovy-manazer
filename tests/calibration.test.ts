@@ -25,6 +25,11 @@ describe('kalibrace (6 sezón, širší tolerance kvůli malému vzorku)', () =>
     expect(value('pohár: postup týmu 3. ligy proti špičce %')).toBeLessThan(14);
   });
 
+  it('penalty se proměňují zhruba ze 77 % (design, sekce 12)', () => {
+    expect(value('proměněné penalty %')).toBeGreaterThan(70);
+    expect(value('proměněné penalty %')).toBeLessThan(84);
+  });
+
   it('průměrná známka ~6,5 a xG odpovídá gólům', () => {
     expect(value('1. liga: průměrná známka')).toBeGreaterThan(6.3);
     expect(value('1. liga: průměrná známka')).toBeLessThan(6.7);

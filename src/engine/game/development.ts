@@ -1,7 +1,7 @@
 // Player development (design, section 5): monthly growth, ageing, academy intake, retirement and
 // AI squad management (moving players between A-team, B-team and academy – no transfers yet).
 
-import type { Balance, GameData, TrainingIntensity } from '../data.ts';
+import type { Balance, GameData, PositionGroup, TrainingIntensity } from '../data.ts';
 import {
   birthDateForAge,
   generateAttributes,
@@ -281,12 +281,48 @@ export function academyIntake(state: GameState, data: GameData, date: string, rn
 
 // ---------------------------------------------------------------- retirement
 
-export function retirementChance(age: number, cel: number, leagueCel: number, balance: Balance): number {
-  const r = balance.retirement;
-  const first = r.byAge[0];
-  if (!first || age < first[0]) return 0;
-  let p = interpolate(r.byAge, age);
-  if (age >= r.weakFromAge && cel < leagueCel - r.weakCelBelowLeague) p += r.weakBonus;
+export interface RetirementInput {
+  age: number;
+  position: Position;
+  /** Average rating of the finished season (null without matches). */
+  avgRating: number | null;
+  minutesShare: number;
+  level: Level | null;
+  professionalism: number;
+  /** Days of injury that started during the season. */
+  injuryDays: number;
+  /** From phase 6: contract valid for the next season too. */
+  contractNextSeason?: boolean;
+}
+
+/** Position group of a player for the retirement table. */
+export function positionGroup(position: Position, balance: Balance): PositionGroup {
+  const groups = balance.retirement.positionGroups;
+  return ((Object.keys(groups) as PositionGroup[]).find((g) => groups[g].includes(position)) ?? 'MF') as PositionGroup;
+}
+
+/** Base chance from the table: the closest lower listed age applies, beyond the last one 100 %. */
+export function baseRetirementChance(age: number, group: PositionGroup, balance: Balance): number {
+  const table = balance.retirement.byPosition[group];
+  const whole = Math.floor(age);
+  let chance = 0;
+  for (const [a, c] of table) if (whole >= a) chance = c;
+  const last = table.at(-1);
+  if (last && whole > last[0]) chance = 1;
+  return chance;
+}
+
+/** Chance that a player ends his career at the end of the season (design, section 5). */
+export function retirementChance(i: RetirementInput, balance: Balance): number {
+  const m = balance.retirement.multipliers;
+  let p = baseRetirementChance(i.age, positionGroup(i.position, balance), balance);
+  if (p <= 0) return 0;
+  if (i.avgRating !== null && i.avgRating >= m.superSeason.minAvgRating && i.minutesShare >= m.superSeason.minMinutesShare) p *= m.superSeason.factor;
+  if (i.contractNextSeason) p *= m.contractNextSeason.factor;
+  if (i.level === 3) p *= m.thirdLevel.factor;
+  if (i.professionalism >= m.highProfessionalism.minProfessionalism) p *= m.highProfessionalism.factor;
+  if (i.minutesShare < m.fewMinutes.maxMinutesShare) p *= m.fewMinutes.factor;
+  if (i.injuryDays > m.longInjury.minDays) p *= m.longInjury.factor;
   return clamp(p, 0, 1);
 }
 

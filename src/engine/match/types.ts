@@ -41,6 +41,7 @@ export interface TeamMatchStats {
   red: number;
   corners: number;
   penalties: number;
+  penaltiesScored: number;
   subs: number;
 }
 

@@ -58,6 +58,10 @@ Směr závislostí: `ui → state → engine → data`. Engine nikdy neimportuje
 - Kluby mají `id` jako slug (`slavia-praha`, `slavia-praha-b`). B/C týmy mají `parentClubId`.
 - Pozice: kódy `GK CB LB RB DM CM AM LM RM LW RW ST`, v UI česky (BR SO LO PO DZ SZ OZ LZ PZ LK PK ÚT).
 
+## Deník rozhodnutí
+
+Rozhodnutí bez explicitního zadání a otevřené otázky se zapisují do `docs/poznamky-implementace.md`.
+
 ## Otevřené body (neověřeno)
 
 - Data klubů mají `verified: false`: web FAČR nebyl z vývojového prostředí dostupný. Nejisté údaje jsou v poli `note`.
@@ -97,4 +101,5 @@ Po změně čísel v `balance.json → match` vždy pusť `npm run calibrate` (s
 | 2 | atributy, taktika, simulace zápasu, známky, zranění a tresty, kalibrace | hotovo |
 | 3 | UI (Domů, Soupiska, Profil, Taktika, Zápas, Soutěže, Konec sezóny), kalendář, ukládání – MVP | hotovo |
 | 4 | vývoj hráčů, akademie, B-týmy, nadstavba, baráž, MOL Cup, přechod sezóny | hotovo |
+| 4b | doplňky z CSM: konce kariér podle pozic, typy zranění a návrat, únava podle věku, varování na 3 žluté, kalibrace penalt | hotovo |
 | 5–8 | viz `docs/design.md`, sekce 16 | – |

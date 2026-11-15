@@ -4,7 +4,7 @@
 // injuries heal, and on the 1st of every month players develop (design, section 5).
 // All randomness is derived from the seed per match / per day, so a loaded game continues identically.
 
-import type { GameData, TrainingIntensity } from '../data.ts';
+import type { GameData, InjuryType, TrainingIntensity } from '../data.ts';
 import { lineupStrength, type TeamSheet } from '../lineup.ts';
 import { playMatch } from '../match/engine.ts';
 import type { MatchReport } from '../match/types.ts';
@@ -16,7 +16,7 @@ import { createWorld, type World } from '../world.ts';
 import { addDays, daysBetween, parseDate, roundDates, seasonStart } from './calendar.ts';
 import { createCup, cupFinished, cupLevel, nextCupDate, progressCup } from './cup.ts';
 import { academyIntake, developmentTick, manageSquads, resolveTraining } from './development.ts';
-import { applyMatchToPlayers } from './playerState.ts';
+import { applyMatchToPlayers, returnFromInjury } from './playerState.ts';
 import { firstLeagueOrder, postseasonDone, progressPostseason, regularTable, seasonRngOf } from './postseason.ts';
 import { membersOf, type Membership } from './pyramid.ts';
 import { aiSheet, selectionFor, type SelectionCache } from './selection.ts';
@@ -375,12 +375,15 @@ function passSegment(state: GameState, data: GameData, from: string, to: string,
     if (s.injury) {
       s.injury.daysLeft -= days;
       if (s.injury.daysLeft <= 0) {
-        delete s.injury;
-        if (p.clubId === userId && !p.academy) news.push({ date: to, kind: 'recovered', playerId: p.id, text: `${nameOf(p)} je po zranění zpět.` });
+        returnFromInjury(p, to, balance);
+        if (p.clubId === userId && !p.academy)
+          news.push({ date: to, kind: 'recovered', playerId: p.id, text: `${nameOf(p)} je po zranění zpět, pár týdnů bude potřebovat do formy a víc riskuje nové zranění.` });
       }
     } else if (own && survive < 1 && rng.chance(1 - survive)) {
-      const injury = { type: 'zranění z tréninku', daysLeft: rng.int(balance.training.injuryDays[0], balance.training.injuryDays[1]) };
+      const light = balance.injuries.types[0] as InjuryType;
+      const injury = { type: `${rng.pick(light.names)} (trénink)`, daysLeft: rng.int(light.minDays, light.maxDays) };
       s.injury = injury;
+      s.seasonInjuryDays = (s.seasonInjuryDays ?? 0) + injury.daysLeft;
       news.push({ date: to, kind: 'injury', playerId: p.id, text: `${nameOf(p)} se zranil v tréninku, mimo hru zhruba ${injury.daysLeft} dní.` });
     }
   }
@@ -474,7 +477,7 @@ function summarize(report: MatchReport, homeId: string, awayId: string, round: n
   };
 }
 
-function userMatchNews(state: GameState, report: MatchReport, before: Map<string, number>, date: string): NewsItem[] {
+function userMatchNews(state: GameState, data: GameData, report: MatchReport, before: Map<string, number>, date: string): NewsItem[] {
   const rt = runtimeOf(state);
   const news: NewsItem[] = [];
   for (const line of report.players) {
@@ -482,6 +485,9 @@ function userMatchNews(state: GameState, report: MatchReport, before: Map<string
     const p = rt.byId.get(line.playerId);
     if (!p) continue;
     if (line.injury) news.push({ date, kind: 'injury', playerId: p.id, text: `${nameOf(p)} se zranil (${line.injury.type}), mimo hru zhruba ${line.injury.daysLeft} dní.` });
+    const perBan = data.balance.discipline.yellowsPerBan;
+    if (line.yellow > 0 && line.red === 'none' && p.state.yellowCards % perBan === perBan - data.balance.discipline.warnAtYellowsBeforeBan)
+      news.push({ date, kind: 'suspension', playerId: p.id, text: `Pozor: ${nameOf(p)} má ${p.state.yellowCards} žluté karty, další znamená stopku.` });
     const added = p.state.suspensionMatches - (before.get(p.id) ?? 0);
     if (added > 0) {
       const why = line.red === 'straight' ? 'červená karta' : line.red === 'secondYellow' ? 'druhá žlutá karta' : `${p.state.yellowCards}. žlutá karta`;
@@ -532,7 +538,7 @@ function playPlanned(state: GameState, data: GameData, m: PlannedMatch, news: Ne
   opts.onReport?.(report, m.competitionId, m.round, m.date);
   if ((isUserHome || isUserAway) && user) {
     user.matches.push({ date: m.date, label: m.label, report });
-    news.push(...userMatchNews(state, report, before, m.date));
+    news.push(...userMatchNews(state, data, report, before, m.date));
   }
   return report;
 }

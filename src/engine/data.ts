@@ -84,12 +84,20 @@ export interface Balance {
     effect: number;
     recoveryPerDay: number;
     daysBetweenRounds: number;
+    ageFatigue: { byAge: [number, number][] };
   };
   form: { historyLength: number; window: number; neutral: number; effectPerPoint: number; maxEffect: number };
   injuries: {
     hazardPerPlayerMinute: number;
     fatigueEffect: number;
-    severities: { weight: number; minDays: number; maxDays: number; types: string[] }[];
+    types: InjuryType[];
+    afterReturn: {
+      condition: number;
+      formRatingPenalty: number;
+      formMatches: number;
+      reinjuryDays: number;
+      reinjuryMultiplier: number;
+    };
   };
   discipline: {
     yellowsPerBan: number;
@@ -97,6 +105,9 @@ export interface Balance {
     secondYellowBan: number;
     straightRedBan: { matches: number[]; weights: number[] };
     resetYellowsAtSeasonEnd: boolean;
+    warnAtYellowsBeforeBan: number;
+    postseason: { separateCount: boolean; bans: [number, number][] };
+    cupSeparateCount: boolean;
   };
   ratings: {
     base: number;
@@ -176,15 +187,39 @@ export interface Balance {
     /** AI B-teams keep players younger than this (older ones not good enough for the A-team leave). */
     reserveMaxAge: number;
   };
-  retirement: { byAge: [number, number][]; weakBonus: number; weakFromAge: number; weakCelBelowLeague: number };
+  retirement: {
+    byPosition: Record<PositionGroup, [number, number][]>;
+    positionGroups: Record<PositionGroup, Position[]>;
+    multipliers: {
+      superSeason: { factor: number; minAvgRating: number; minMinutesShare: number };
+      contractNextSeason: { factor: number };
+      thirdLevel: { factor: number };
+      highProfessionalism: { factor: number; minProfessionalism: number };
+      fewMinutes: { factor: number; maxMinutesShare: number };
+      longInjury: { factor: number; minDays: number };
+    };
+    freeAgentCertain: { minAge: number; monthsWithoutOffer: number };
+    lastSeasonAnnouncement: { month: number; minChance: number; persuadeSuccess: number };
+    dropDownInstead: { chance: number; minCelAboveLeague: number };
+    staffOffer: { chance: number; roles: string[] };
+  };
   training: Record<TrainingIntensity, { growth: number; recovery: number; injuryPerPlayerDay: number }> & {
     assistant: { hardIfDaysToMatch: number; lightIfDaysToMatch: number };
-    injuryDays: [number, number];
   };
+  calibration: { penaltyConversion: { target: number; tolerance: number } };
   rotation: { minCondition: number };
 }
 
 export type TrainingIntensity = 'light' | 'normal' | 'hard';
+export type PositionGroup = 'GK' | 'DF' | 'MF' | 'FW';
+
+export interface InjuryType {
+  name: string;
+  minDays: number;
+  maxDays: number;
+  weight: number;
+  names: string[];
+}
 
 export interface Pyramid {
   firstLeague: {
@@ -466,7 +501,7 @@ export function validateGameData(raw: RawGameData): GameData {
     for (const key of [
       'rating', 'attributes', 'squad', 'strength', 'age', 'profile', 'potential', 'simpleResults',
       'match', 'condition', 'form', 'injuries', 'discipline', 'ratings', 'ai',
-      'development', 'academy', 'squads', 'retirement', 'training', 'rotation',
+      'development', 'academy', 'squads', 'retirement', 'training', 'rotation', 'calibration',
     ])
       if (!isObj(raw.balance[key])) problems.push(`balance.${key}: chybí`);
     if (problems.length === 0) {

@@ -157,6 +157,12 @@ export interface PlayerState {
   yellowCards: number;
   /** Months in senior (A or B team) football – adaptation (design, section 5). */
   seniorMonths?: number;
+  /** Days of injury that started this season (retirement: long injury). */
+  seasonInjuryDays?: number;
+  /** After returning from an injury: higher re-injury risk until this date (ISO). */
+  reinjuryUntil?: string;
+  /** After returning from an injury: matches with a form penalty left. */
+  returnFormMatches?: number;
 }
 
 /** One finished season of a player's career. */

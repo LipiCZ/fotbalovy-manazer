@@ -22,6 +22,7 @@ export interface LevelAgg {
   yellow: number;
   red: number;
   penalties: number;
+  penaltiesScored: number;
   corners: number;
   injuries: number;
   ratingSum: number;
@@ -39,7 +40,7 @@ export interface Aggregate {
 
 const emptyLevel = (): LevelAgg => ({
   matches: 0, goals: 0, homeWins: 0, draws: 0, shots: 0, onTarget: 0, xg: 0, possessionDev: 0,
-  fouls: 0, yellow: 0, red: 0, penalties: 0, corners: 0, injuries: 0, ratingSum: 0, ratingCount: 0,
+  fouls: 0, yellow: 0, red: 0, penalties: 0, penaltiesScored: 0, corners: 0, injuries: 0, ratingSum: 0, ratingCount: 0,
 });
 
 export function emptyAggregate(): Aggregate {
@@ -84,6 +85,7 @@ export function runSeasons(from: number, to: number, data: GameData = loadDefaul
           a.yellow += t.yellow;
           a.red += t.red;
           a.penalties += t.penalties;
+          a.penaltiesScored += t.penaltiesScored;
           a.corners += t.corners;
         }
         a.possessionDev += Math.abs(s.stats.home.possession - 50);
@@ -154,6 +156,10 @@ export function evaluate(agg: Aggregate): Check[] {
   add('1. liga: žluté na tým', per(1, 'yellow', 2), 1.7, 2.6, 'odhad');
   add('1. liga: červené na zápas', per(1, 'red'), 0.08, 0.2, 'odhad');
   add('1. liga: penalty na zápas', per(1, 'penalties'), 0.2, 0.35, 'odhad');
+  const pc = loadDefaultData().balance.calibration.penaltyConversion;
+  const scored = L[1].penaltiesScored + L[2].penaltiesScored + L[3].penaltiesScored;
+  const taken = L[1].penalties + L[2].penalties + L[3].penalties;
+  add('proměněné penalty %', (100 * scored) / Math.max(1, taken), 100 * (pc.target - pc.tolerance), 100 * (pc.target + pc.tolerance), 'design');
   add('1. liga: rohy na tým', per(1, 'corners', 2), 4, 6, 'odhad');
   add('1. liga: zranění na zápas', per(1, 'injuries'), 0.15, 0.5, 'odhad');
   add('favorité (Slavia, Sparta, Plzeň) v top 3 %', (100 * agg.favouriteTop3) / Math.max(1, agg.favouriteSeasons), 50, 90, 'odhad');
