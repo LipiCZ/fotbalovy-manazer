@@ -165,11 +165,17 @@ export interface BoardGoals {
   /** Reach this cup round (index into cup.rounds) or further. */
   cupRound: number;
   cupLabel: string;
+  /** Minimum result of the season as a share of expected revenue (phase 8 addition; older saves lack it). */
+  financeShare?: number;
+  financeLabel?: string;
 }
 
 export interface SeasonEvaluation {
   league: Grade;
   cup: Grade;
+  finance?: Grade;
+  /** Result of the season as a share of expected revenue. */
+  financeResultShare?: number;
   overall: Grade;
   leaguePosition: number;
   cupReached: number;

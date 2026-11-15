@@ -209,6 +209,7 @@ export function HomeScreen() {
               {pos >= 0 && !group && <span className="muted"> (teď {pos + 1}. místo)</span>}
             </li>
             {game.cup && <li>{game.board.goals.cupLabel}</li>}
+            {game.board.goals.financeLabel && <li>{game.board.goals.financeLabel}</li>}
             <li>
               Platy: {money(wageBill(game, data, userClubId))} ročně z rozpočtu {money(game.board.budget.wageCap)}
             </li>

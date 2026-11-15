@@ -216,8 +216,13 @@ export function moveUserPlayer(
   data: GameData,
   membership: Record<string, string>,
   ageNow: number,
+  /** Current size of the A-team (squad limit of the manager, balance.squads.userMax). */
+  aTeamSize = 0,
 ): string | null {
   const bId = activeReserveTeam(data, membership, clubId);
+  const inA = player.clubId === clubId && !player.academy;
+  if (target === 'A' && !inA && aTeamSize >= data.balance.squads.userMax)
+    return `Kádr A-týmu je plný (limit ${data.balance.squads.userMax} hráčů). Nejdřív někoho přesuň nebo prodej.`;
   if (target === 'B' && !bId) return 'Klub nemá B-tým v soutěži.';
   if (target === 'academy' && ageNow >= data.balance.academy.releaseAtAge)
     return `Do akademie může jen hráč mladší ${data.balance.academy.releaseAtAge} let.`;

@@ -7,7 +7,9 @@ import {
   agreeTerms,
   askingPrice,
   canRenew,
+  clubAttractiveness,
   clubName,
+  refusesClub,
   exerciseOption,
   isUserOrg,
   listPlayer,
@@ -293,6 +295,10 @@ function BuyActions({ p }: { p: Player }) {
         </div>
       )}
       {offer && <button onClick={() => store.market((g) => withdrawOffer(g, offer.id))}>Stáhnout nabídku</button>}
+      <p className="muted">
+        Atraktivita našeho klubu pro hráče (výsledky a ambice): {Math.round(clubAttractiveness(game, data, userId) * 100)} %.
+        {refusesClub(game, data, p, userId) ? ' Hráč dal najevo, že k nám nepůjde.' : ''}
+      </p>
       <p className="muted">
         Orientačně: tržní hodnota {money(value)}
         {game.scouting.scouts.some((s) => s.level === 'elitní') ? `, klub by chtěl kolem ${money(askingPrice(game, data, p, userId))} (odhad elitního skauta)` : ''}.

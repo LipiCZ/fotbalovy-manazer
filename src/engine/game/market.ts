@@ -8,11 +8,12 @@ import { celAt, overall } from '../players/rating.ts';
 import { generatePlayer } from '../players/generate.ts';
 import { Rng, hashString } from '../rng.ts';
 import { FREE_AGENT, PHYSICAL, type ClubSize, type Level, type Player, type Position } from '../types.ts';
-import { invalidateRuntime, squadOf } from './advance.ts';
+import { invalidateRuntime, runtimeOf, squadOf } from './advance.ts';
 import { addDays, daysBetween } from './calendar.ts';
 import { averageRecent, exactAge, idAllocator } from './development.ts';
 import { book, levelOf, payingClub, wageFor } from './finance.ts';
 import { selectionFor } from './selection.ts';
+import { regularTable } from './postseason.ts';
 import { isFavourite, relation } from './club.ts';
 import type { GameState, Installment, MarketState, NewsItem, Offer } from './state.ts';
 
@@ -36,6 +37,13 @@ export function isUserOrg(state: GameState, data: GameData, clubId: string): boo
 
 /** Owner of the player's registration (the lending club for a player on loan). */
 export const ownerOf = (p: Player) => p.loan?.fromClubId ?? p.clubId;
+
+/** The manager's A-team is full (squad limit, user's decision). Only the A-team counts. */
+export function userSquadFull(state: GameState, data: GameData, clubId: string): boolean {
+  return clubId === state.userClubId && squadOf(state, clubId).length >= data.balance.squads.userMax;
+}
+
+const fullMessage = (data: GameData) => `Kádr A-týmu je plný (limit ${data.balance.squads.userMax} hráčů). Nejdřív někoho prodej, pusť nebo přesuň do B-týmu.`;
 
 // ---------------------------------------------------------------- windows
 
@@ -154,6 +162,57 @@ export interface Terms {
   signingBonus: number;
 }
 
+// Cached per runtime (dropped on every squad change) and per table state, so a loaded game computes the same values.
+const attractivenessCache = new WeakMap<object, { key: string; values: Map<string, number> }>();
+
+/**
+ * How attractive a club is for a player (0–1). Decided by the user: only sporting success and the
+ * team's ambitions count (not the coach's reputation, not the money).
+ */
+export function clubAttractiveness(state: GameState, data: GameData, clubId: string): number {
+  const key = `${state.date}|${state.competitions.reduce((s, c) => s + c.results.length, 0)}|${state.board?.goals.leaguePosition ?? ''}`;
+  const rt = runtimeOf(state);
+  let cache = attractivenessCache.get(rt);
+  if (!cache || cache.key !== key) {
+    cache = { key, values: new Map() };
+    attractivenessCache.set(rt, cache);
+  }
+  const hit = cache.values.get(clubId);
+  if (hit !== undefined) return hit;
+  const a = data.balance.transfers.personal.attractiveness;
+  const comp = state.membership[clubId];
+  const percentile = (index: number, n: number) => (n <= 1 ? 0.5 : 1 - index / (n - 1));
+  let success = 0.5;
+  let ambition = 0.5;
+  if (comp) {
+    const progress = state.competitions.find((c) => c.id === comp);
+    if (progress && progress.playedRounds >= a.minRoundsForTable) {
+      const table = regularTable(state, comp, data);
+      success = percentile(table.findIndex((r) => r.clubId === clubId), table.length);
+    } else {
+      const last = state.history.at(-1);
+      const order = last ? Object.values(last.standings).find((o) => o?.includes(clubId)) : undefined;
+      if (order) success = percentile(order.indexOf(clubId), order.length);
+    }
+    const members = Object.keys(state.membership).filter((id) => state.membership[id] === comp);
+    if (clubId === state.userClubId && state.board) ambition = percentile(state.board.goals.leaguePosition - 1, members.length);
+    else {
+      const ranked = [...members].sort((x, y) => strengthOf(state, data, y) - strengthOf(state, data, x) || x.localeCompare(y));
+      ambition = percentile(ranked.indexOf(clubId), ranked.length);
+    }
+  }
+  const value = clamp(0.5 * success + 0.5 * ambition, 0, 1);
+  cache.values.set(clubId, value);
+  return value;
+}
+
+/** A good player does not join a club without success and ambitions. */
+export function refusesClub(state: GameState, data: GameData, p: Player, clubId: string): boolean {
+  const a = data.balance.transfers.personal.attractiveness;
+  if (clubAttractiveness(state, data, clubId) >= a.refuseBelow) return false;
+  return overall(p, data.balance) >= strengthOf(state, data, clubId) + a.refuseCelGap;
+}
+
 /** Personal terms the player asks for at a new club (design, section 8). */
 export function personalDemand(state: GameState, data: GameData, p: Player, buyerId: string): Terms {
   const t = data.balance.transfers.personal;
@@ -164,6 +223,8 @@ export function personalDemand(state: GameState, data: GameData, p: Player, buye
   let wage = wageFor(p, buyerLevel, isReserve(data, buyerId), sizeOf(data, buyerId), data.balance);
   if (buyerLevel > fromLevel) wage *= 1 + t.lowerLeagueMarkup;
   if (buyerLevel < fromLevel) wage *= 1 - t.higherLeagueDiscount;
+  // Sporting success and ambitions of the club: an unattractive club pays more.
+  wage *= 1 + 2 * t.attractiveness.wageEffect * (0.5 - clubAttractiveness(state, data, buyerId));
   const rng = new Rng(`${state.seed}/terms/${p.id}/${buyerId}/${state.seasonYear}`);
   const free = p.clubId === FREE_AGENT;
   if (free) {
@@ -298,6 +359,12 @@ export function executeTransfer(state: GameState, data: GameData, offer: Offer, 
     offer.note = 'Hráč už v klubu není.';
     return false;
   }
+  if (userSquadFull(state, data, offer.buyerId)) {
+    offer.status = 'withdrawn';
+    offer.note = fullMessage(data);
+    news(state, data, out, p, `Přestup ${nameOf(p)} padl: ${fullMessage(data)}`, offer.buyerId);
+    return false;
+  }
   const date = state.date;
   const n = data.balance.transfers.negotiation;
   const terms = offer.terms ?? personalDemand(state, data, p, offer.buyerId);
@@ -344,6 +411,11 @@ export function executeLoan(state: GameState, data: GameData, offer: Offer, out?
   const p = state.players.find((x) => x.id === offer.playerId);
   if (!p || p.clubId !== offer.sellerId || p.loan || !offer.loan) {
     offer.status = 'withdrawn';
+    return false;
+  }
+  if (userSquadFull(state, data, offer.buyerId)) {
+    offer.status = 'withdrawn';
+    offer.note = fullMessage(data);
     return false;
   }
   const lender = payingClub(data, offer.sellerId);
@@ -510,6 +582,9 @@ export function agreeTerms(state: GameState, data: GameData, offerId: string, wa
   const offer = state.market.offers.find((o) => o.id === offerId);
   const p = offer && state.players.find((x) => x.id === offer.playerId);
   if (!offer || !p || offer.status !== 'agreed') return { offer: null, message: 'Dohoda s klubem neplatí.' };
+  if (userSquadFull(state, data, offer.buyerId)) return { offer, message: fullMessage(data) };
+  if (offer.kind === 'transfer' && refusesClub(state, data, p, offer.buyerId))
+    return { offer, message: `${nameOf(p)} k nám nechce: klub nemá výsledky ani ambice na jeho úroveň.` };
   const demand = personalDemand(state, data, p, offer.buyerId);
   const t = data.balance.transfers.personal;
   if (offer.kind === 'transfer' && wage < demand.wage * t.acceptMargin) return { offer, message: `Hráč chce aspoň ${Math.round(demand.wage / 1000).toLocaleString('cs-CZ')} tis. Kč měsíčně.` };
@@ -565,6 +640,8 @@ export function signFreeAgent(state: GameState, data: GameData, playerId: string
   const p = state.players.find((x) => x.id === playerId);
   if (!buyer || !p || p.clubId !== FREE_AGENT) return { offer: null, message: 'Hráč už není volný.' };
   if (p.lowerLeagueOnly && levelOf(state, data, buyer) < 3) return { offer: null, message: 'Hráč chce kariéru dohrát v nižší soutěži.' };
+  if (userSquadFull(state, data, buyer)) return { offer: null, message: fullMessage(data) };
+  if (refusesClub(state, data, p, buyer)) return { offer: null, message: `${nameOf(p)} k nám nechce: klub nemá výsledky ani ambice na jeho úroveň.` };
   const demand = personalDemand(state, data, p, buyer);
   if (wage < demand.wage * data.balance.transfers.personal.acceptMargin) return { offer: null, message: `Hráč chce aspoň ${Math.round(demand.wage / 1000).toLocaleString('cs-CZ')} tis. Kč měsíčně.` };
   const f = state.finances[buyer];
@@ -644,7 +721,7 @@ export function respondToOffer(state: GameState, data: GameData, offerId: string
 // ---------------------------------------------------------------- AI market (weekly in a window)
 
 function strengthOf(state: GameState, data: GameData, clubId: string): number {
-  return selectionFor(clubId, squadOf(state, clubId), data).strength;
+  return selectionFor(clubId, squadOf(state, clubId), data, runtimeOf(state).selection).strength;
 }
 
 function targetStrength(state: GameState, data: GameData, clubId: string): number {
@@ -753,7 +830,8 @@ export function aiMarketTick(state: GameState, data: GameData, date: string, rng
         (p.clubId === FREE_AGENT || squadOf(state, p.clubId).length > data.balance.squads.byLevel[`${levelOf(state, data, p.clubId)}`].min) &&
         p.positions.includes(pos) &&
         (!p.lowerLeagueOnly || level === 3) &&
-        celAt(p, pos, data.balance) >= worst + a.upgradeMargin,
+        celAt(p, pos, data.balance) >= worst + a.upgradeMargin &&
+        !refusesClub(state, data, p, clubId),
     );
     let best: { p: Player; price: number; score: number } | null = null;
     for (const p of candidates) {

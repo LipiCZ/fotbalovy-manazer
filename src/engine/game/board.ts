@@ -5,7 +5,7 @@
 import type { GameData } from '../data.ts';
 import type { ClubSize } from '../types.ts';
 import { finalStandings, squadOf } from './advance.ts';
-import { seasonBudget } from './finance.ts';
+import { seasonBudget, statements } from './finance.ts';
 import { levelOfCompetition, membersOf } from './pyramid.ts';
 import { selectionFor } from './selection.ts';
 import type { BoardGoals, GameState, Grade, SeasonEvaluation } from './state.ts';
@@ -33,7 +33,9 @@ export function boardGoals(state: GameState, data: GameData): BoardGoals | null 
   else leagueLabel = `skončit do ${target}. místa`;
   const cupRound = data.balance.board.goals.cupTargetRoundByLevelAndSize[`${level}`][`${(club?.size ?? 1) as ClubSize}`];
   const roundName = data.pyramid.cup.rounds[cupRound]?.name ?? '1. kolo';
-  return { leaguePosition: target, leagueLabel, cupRound, cupLabel: `${data.pyramid.cup.name}: dostat se do kola „${roundName}“` };
+  const share = data.balance.board.financeGoal.minResultShare;
+  const financeLabel = share >= 0 ? `Finance: skončit v zisku aspoň ${Math.round(share * 100)} % příjmů` : `Finance: ztráta nejvýš ${Math.round(-share * 100)} % příjmů`;
+  return { leaguePosition: target, leagueLabel, cupRound, cupLabel: `${data.pyramid.cup.name}: dostat se do kola „${roundName}“`, financeShare: share, financeLabel };
 }
 
 export function startBoardSeason(state: GameState, data: GameData): void {
@@ -75,13 +77,19 @@ export function evaluateSeason(state: GameState, data: GameData, relegated: bool
   if (relegated && board.goals.leaguePosition < order.length - 3) league = 'katastrofa';
   const reached = cupRoundReached(state, clubId);
   const cup = state.cup ? gradeFromDiff(reached - board.goals.cupRound, b.cupRoundsBeyondTarget) : 'přijatelná';
+  // Finance (third goal, smaller weight): result of the season against expected revenue.
+  const f = state.finances[clubId];
+  let finance: Grade | undefined;
+  let resultShare: number | undefined;
+  if (f && board.goals.financeShare !== undefined && f.expectedRevenue > 0) {
+    resultShare = statements(f).result / f.expectedRevenue;
+    finance = gradeFromDiff(Math.round((resultShare - board.goals.financeShare) * 100), b.financeGoal.pointsAboveTarget);
+  }
   const score = (g: Grade) => b.gradeScore[g] ?? 0;
-  const cupScore = score(cup);
-  const total =
-    b.weights.league[score(league) >= 0 ? 'success' : 'failure'] * score(league) +
-    b.weights.cup[cupScore >= 0 ? 'success' : 'failure'] * cupScore;
+  const part = (w: { success: number; failure: number }, g: Grade) => w[score(g) >= 0 ? 'success' : 'failure'] * score(g);
+  const total = part(b.weights.league, league) + part(b.weights.cup, cup) + (finance ? part(b.weights.finance, finance) : 0);
   const overall: Grade = total >= 1.5 ? 'vynikající' : total >= 0.5 ? 'úspěšná' : total >= -0.5 ? 'přijatelná' : total >= -1.5 ? 'neúspěšná' : 'katastrofa';
-  return { league, cup, overall, leaguePosition: position, cupReached: reached };
+  return { league, cup, ...(finance ? { finance, financeResultShare: resultShare } : {}), overall, leaguePosition: position, cupReached: reached };
 }
 
 /** Sacking rule (design, section 10): a catastrophic season, or two failed seasons in a row. */

@@ -279,6 +279,10 @@ Malý klub získává kvalitu hlavně přes mladíky velkých klubů se smluvní
 
 **Prodej:** příchozí nabídky (přijmout, protinávrh, odmítnout), status „na prodej“ s cenou, aktivní nabídnutí hráče klubům, které na něj mají, hostování ven. Odmítnutí velké nabídky mírně sníží morálku hráče.
 
+**Ochota hráče přijít (rozhodnutí uživatele):** rozhoduje jen sportový úspěch klubu a ambice týmu – ne reputace trenéra ani peníze navíc. Atraktivita klubu 0–1 = polovina úspěch (pořadí v tabulce, před 5. kolem loňské umístění) a polovina ambice (cíl vedení, u AI síla kádru v soutěži). Neatraktivní klub zaplatí na platu až o 25 % víc, atraktivní až o 25 % méně; hráč o 6+ bodů CEL lepší než tým odmítne klub s atraktivitou pod 25 % (návrh, `transfers.personal.attractiveness`).
+
+**Limit kádru (rozhodnutí uživatele):** A-tým manažera má nejvýš 30 hráčů. Nad limit nejde koupit, podepsat, půjčit ani přesunout hráče z B-týmu či mládeže; návrat z hostování projde.
+
 **Jak AI klub ocení hráče:** tržní hodnota × důležitost hráče pro klub × potřeba peněz × délka smlouvy × termín (konec okna zvyšuje tlak). Splátky bývají dražší než platba najednou.
 
 **Živý trh:** AI kluby kupují, prodávají a hostují mezi sebou podle stejných pravidel. Velké kluby se budou zajímat i o tvoje talenty.
@@ -357,7 +361,9 @@ Hlavní režim je kariéra od dna ve 3. lize. Volný výběr je doplňkový.
 - Nabídky větších klubů (vyšší soutěž nebo větší klub ve stejné) jen s dostatečnou reputací (např. 2. liga 30–45, 1. liga 50–85 podle velikosti); šance po vynikající sezóně 60 %, po úspěšné 30 %, po přijatelné 10 %; 1–2 nabídky, jdou odmítnout. Přestup trenéra proběhne hned na začátku sezóny.
 - Vyhazov podle pravidla výše (katastrofa, nebo dvě neúspěšné za sebou): reputace −5 a 3 nabídky z klubů stejné nebo nižší úrovně (nouzově 3. liga). Dokud trenér nepřijme, sezóna nepokračuje. Konec kariéry (žádná nabídka) hra nezná.
 
-*Otevřená otázka:* sekce 13 a 14 říkají, že vedení hodnotí i finance (účetní výsledek, „zdravé finance“), ale doplněk zná jen cíle liga a pohár. Navrhuji jako třetí cíl přidat finance (hodnocené stejnou stupnicí). Rozhodnutí je na tobě.
+**Finance jako třetí cíl (rozhodnutí uživatele):** vedení hodnotí i hospodářský výsledek sezóny, s menší váhou než liga (návrh: váha 0,4 proti 1,0 u ligy). Cíl: ztráta nejvýš 5 % očekávaných příjmů; stupeň podle rozdílu v procentních bodech (+10 vynikající, +3 úspěšná, 0 přijatelná, −10 neúspěšná, horší katastrofa).
+
+**Kariéra trenéra nekončí (rozhodnutí uživatele):** po vyhazovu vždy přijdou nabídky (nouzově ze 3. ligy). Reputace trenéra ovlivňuje jen nabídky klubů.
 
 ## 11. Hráči a atributy
 
@@ -540,7 +546,9 @@ Tahle vrstva dává hře atmosféru a zpětnou vazbu, ale čísla mění jen má
 | Město | výsledky, mládež, akce pro komunitu | skandály | dotace a stadion |
 | Kabina | výhry, minuty, férové smlouvy, bavič | lavička pro hráče ve formě, nevyplacené prémie | morálka a výkon |
 
-**Fanoušci:** základna roste pomalu s úspěchy a reputací. Ceny vstupenek se nastavují jednou za sezónu (permanentka, běžný zápas, příplatek na derby a pohár). Kotel občas přinese pyrotechniku a pokutu, ale také lepší atmosféru a domácí bonus.
+**Fanoušci:** základna roste pomalu s úspěchy a reputací. Ceny vstupenek se nastavují jednou za sezónu. **Rozhodnutí uživatele:** jedna cena pro česká mistrovská utkání (liga, nadstavba, baráž, MOL Cup); dražší vstupenky mají jen evropské poháry, které zároveň přitáhnou víc fanoušků (až přibudou do hry). Permanentky ani příplatky na derby se zvlášť nenastavují.
+
+**Vztahy a rozpočet (rozhodnutí uživatele):** vztah s vedením rozpočet nemění, jen ukazuje průběžné hodnocení. Rozpočet na přestupy je orientační, nic nevynucuje. Kotel občas přinese pyrotechniku a pokutu, ale také lepší atmosféru a domácí bonus.
 
 **Média:** titulky po zápasech ze šablon podle úrovně soutěže (okresní deník až celostátní sport). Tiskovky jen při důležitých událostech, 2–3 odpovědi s tónem klidný, sebevědomý nebo útočný a malým dopadem.
 

@@ -49,6 +49,14 @@ function SeasonReport() {
               <td>{game.board.goals.cupLabel}</td>
               <td className={GRADE_CLASS[evaluation.cup]}>{evaluation.cup}</td>
             </tr>
+            {evaluation.finance && (
+              <tr>
+                <td>{game.board.goals.financeLabel}</td>
+                <td className={GRADE_CLASS[evaluation.finance]}>
+                  {evaluation.finance} ({Math.round((evaluation.financeResultShare ?? 0) * 100)} %)
+                </td>
+              </tr>
+            )}
             <tr>
               <td>
                 <strong>Celkem</strong>

@@ -642,7 +642,9 @@
       "youthWeight": 0.5,
       "agePenalty": 1.5
     },
-    "reserveMaxAge": 22
+    "reserveMaxAge": 22,
+    "userMax": 30,
+    "_userMaxNote": "Limit seniorů A-týmu manažera (zadání uživatele). Nové příchody a přesuny do A-týmu nad limit nejdou; návrat z hostování ano."
   },
   "retirement": {
     "_note": "Konec kariéry na konci sezóny (design, sekce 5; doplněk inspirovaný CSM). Základní šance podle věku a skupiny pozic (platí nejbližší nižší uvedený věk, za posledním 100 %), pak násobiče, výsledek 0–1. Smlouva a volní hráči od fáze 6, ohlášení poslední sezóny ve fázi 7.",
@@ -722,7 +724,8 @@
       "neúspěšná": -1,
       "_belowIs": "katastrofa"
     },
-    "weights": {"league": {"success": 1.0, "failure": 1.0}, "cup": {"success": 0.6, "failure": 0.2}},
+    "weights": {"league": {"success": 1.0, "failure": 1.0}, "cup": {"success": 0.6, "failure": 0.2}, "finance": {"success": 0.4, "failure": 0.4}},
+    "financeGoal": {"_note": "Třetí cíl vedení (zadání uživatele: menší význam než liga). Hospodářský výsledek sezóny v % očekávaných příjmů; cíl = aspoň minResultShare. Rozdíl proti cíli v procentních bodech -> stupeň. Čísla jsou NÁVRH.", "minResultShare": -0.05, "pointsAboveTarget": {"vynikající": 10, "úspěšná": 3, "přijatelná": 0, "neúspěšná": -10, "_belowIs": "katastrofa"}},
     "sacking": {"onCatastrophe": true, "consecutiveFailures": 2},
     "goals": {
       "_note": "Cíl v lize podle síly kádru v soutěži (pořadí podle síly) posunutý podle velikosti klubu; cíl v poháru podle úrovně (index kola: 0 = 1. kolo …). Návrh.",
@@ -773,6 +776,7 @@
     },
     "personal": {
       "_note": "Požadavek hráče na plat: plat podle nového klubu × ochota (do nižší soutěže +40 %, do vyšší −10 %), podpisový bonus jako počet měsíčních platů.",
+      "attractiveness": {"_note": "Ochota hráče přijít (zadání uživatele): jen sportový úspěch (pořadí v tabulce, před 5. kolem loňské) a ambice týmu (cíl vedení, u AI síla kádru v soutěži), obojí 0–1. Neatraktivní klub platí víc (až +wageEffect), atraktivní méně; hráč o refuseCelGap lepší než tým odmítne klub s atraktivitou pod refuseBelow. NÁVRH.", "wageEffect": 0.25, "refuseBelow": 0.25, "refuseCelGap": 6, "minRoundsForTable": 5},
       "lowerLeagueMarkup": 0.4,
       "higherLeagueDiscount": 0.1,
       "acceptMargin": 0.95,
@@ -806,7 +810,7 @@
     "ai": {
       "_note": "Trh AI: v okně jednou týdně. Klub kupuje, jen když je jeho nejlepší jedenáctka pod cílovou silou + buyBelowTargetBy (záporné = kupuje i kousek nad cílem). Koupí hráče o upgradeMargin lepšího než nejslabší člen základní sestavy, který se vejde do rozpočtu. Klub neprodá, když by mu klesl kádr pod minimum.",
       "upgradeMargin": 3,
-      "buyBelowTargetBy": 1.5,
+      "buyBelowTargetBy": 2,
       "spendShareOfCash": 0.35,
       "reserveMonths": 3,
       "buysPerWindow": 3,

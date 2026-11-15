@@ -236,7 +236,7 @@ export function createAppStore(deps: StoreDeps): StoreApi<AppState> {
         if (!game?.user || !game.userClubId) return;
         const p = runtimeOf(game).byId.get(playerId);
         if (!p) return;
-        const error = moveUserPlayer(p, target, game.userClubId, game.user, data, game.membership, exactAge(p.birthDate, game.date));
+        const error = moveUserPlayer(p, target, game.userClubId, game.user, data, game.membership, exactAge(p.birthDate, game.date), squadOf(game, game.userClubId).length);
         if (error) return set({ message: { kind: 'warn', text: error } });
         invalidateRuntime(game);
         bump();

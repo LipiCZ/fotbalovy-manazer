@@ -187,6 +187,7 @@ export interface Balance {
     keepValue: { youthWeight: number; agePenalty: number };
     /** AI B-teams keep players younger than this (older ones not good enough for the A-team leave). */
     reserveMaxAge: number;
+    userMax: number;
   };
   retirement: {
     byPosition: Record<PositionGroup, [number, number][]>;
@@ -214,7 +215,8 @@ export interface Balance {
     gradeScore: Record<string, number>;
     leaguePlacesBetterThanTarget: Record<string, number>;
     cupRoundsBeyondTarget: Record<string, number>;
-    weights: { league: { success: number; failure: number }; cup: { success: number; failure: number } };
+    weights: { league: { success: number; failure: number }; cup: { success: number; failure: number }; finance: { success: number; failure: number } };
+    financeGoal: { minResultShare: number; pointsAboveTarget: Record<string, number> };
     sacking: { onCatastrophe: boolean; consecutiveFailures: number };
     goals: { leagueSlack: number; cupTargetRoundByLevelAndSize: Record<`${Level}`, Record<`${ClubSize}`, number>> };
   };
@@ -699,6 +701,7 @@ export interface TransferBalance {
     agentShare: number;
   };
   personal: {
+    attractiveness: { wageEffect: number; refuseBelow: number; refuseCelGap: number; minRoundsForTable: number };
     lowerLeagueMarkup: number;
     higherLeagueDiscount: number;
     acceptMargin: number;

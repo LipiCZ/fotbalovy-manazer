@@ -52,3 +52,12 @@ Každá položka: co jsem rozhodl, proč, a kde se to dá změnit.
 - **Ceny sezóny** se počítají jen z dat, která hra uchovává: góly a karty z mých zápasů (u ostatních se události neukládají), známky celé soutěže.
 - **Ladění**: kalibrace zápasů 300 sezón – 9/9 cílů z designu, 0 odhadů mimo rozsah; kalibrace světa (po fázi 6) – prvních 5 sezón v mezích.
 - **Otevřené otázky**: (1) Má reputace trenéra ovlivnit ochotu hráčů přestoupit nebo cíle vedení? (2) Má mít kariéra konec (bez nabídek) nebo možnost odpočinku? (3) Mají se ukládat události všech zápasů, aby gól sezóny byl z celé ligy (větší uložení)?
+
+## Rozhodnutí uživatele po fázi 8
+
+- Finance = třetí cíl vedení s menší vahou (0,4; liga 1,0, pohár 0,6/0,2). Cíl „ztráta nejvýš 5 % příjmů“ a převod na stupně jsou návrh. Stará uložení dostanou finanční cíl od další sezóny.
+- Rozpočet na přestupy zůstává orientační; vztahy rozpočet nemění.
+- Limit A-týmu manažera 30 hráčů (`squads.userMax`).
+- Ochota hráče přijít: jen sportový úspěch a ambice (atraktivita klubu). Platí i pro AI trh. Aby svět zůstal stabilní, AI kupuje až 2 body pod cílovou silou (dřív 1,5).
+- Kariéra nekončí; události zápasů se dál neukládají (stačí sezónní statistiky).
+- Vstupné: jedna cena pro česká mistrovská utkání; evropské poháry (dražší, víc diváků) až s poháry.
