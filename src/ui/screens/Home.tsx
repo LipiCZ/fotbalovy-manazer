@@ -5,8 +5,50 @@ import { getAppStore, useGame } from '../../state/store.ts';
 import { ClubLabel, clubOf, FormBadges, playerOf, PlayerLink } from '../components.tsx';
 import { formatDate, formatDateLong, money } from '../format.ts';
 import { wageBill } from '../../engine/game/finance.ts';
+import { expiringContracts, isUserOrg, windowOn } from '../../engine/game/market.ts';
 
-const NEWS_ICON = { injury: '✚', suspension: '🟥', lineup: '🔁', recovered: '✅', academy: '🎓', development: '📈', season: '📅', info: 'ℹ️' } as const;
+/** Things waiting for the manager (design, section 15: the Home screen shows what needs a decision). */
+function Decisions() {
+  const { game, data } = useGame();
+  const store = getAppStore().getState();
+  const userId = game.userClubId as string;
+  const incoming = game.market.offers.filter((o) => o.initiatedBy === 'ai' && o.status === 'open' && isUserOrg(game, data, o.sellerId));
+  const mine = game.market.offers.filter((o) => o.buyerId === userId && o.initiatedBy === 'user' && (o.status === 'countered' || o.status === 'agreed'));
+  const pending = game.market.offers.filter((o) => o.buyerId === userId && o.status === 'pending');
+  const expiring = game.finished ? [] : expiringContracts(game, data);
+  const tips = game.scouting.tips;
+  const items: { text: string; go: () => void; label: string }[] = [];
+  if (incoming.length > 0) items.push({ text: `${incoming.length}× nabídka na tvého hráče`, label: 'Nabídky', go: () => store.navigate({ name: 'transfers', tab: 'offers' }) });
+  if (mine.length > 0) items.push({ text: `${mine.length}× rozjednaný přestup čeká na tebe (protinabídka nebo osobní podmínky)`, label: 'Nabídky', go: () => store.navigate({ name: 'transfers', tab: 'offers' }) });
+  if (pending.length > 0) items.push({ text: `${pending.length}× dohodnutý příchod čeká na otevření okna`, label: 'Nabídky', go: () => store.navigate({ name: 'transfers', tab: 'offers' }) });
+  if (expiring.length > 0) items.push({ text: `${expiring.length} hráčům končí 30. 6. smlouva`, label: 'Smlouvy', go: () => store.navigate({ name: 'transfers', tab: 'mine' }) });
+  if (tips.length > 0) items.push({ text: `${tips.length}× tip skauta na talent`, label: 'Skauting', go: () => store.navigate({ name: 'scouting' }) });
+  if (items.length === 0 && !windowOn(game.date, data)) return null;
+  return (
+    <section className="card" data-testid="decisions">
+      <h3>K rozhodnutí</h3>
+      {windowOn(game.date, data) && <p className="good">Přestupní okno je otevřené.</p>}
+      {items.length === 0 ? (
+        <p className="muted">Nic nečeká.</p>
+      ) : (
+        <table className="data">
+          <tbody>
+            {items.map((i) => (
+              <tr key={i.text}>
+                <td>{i.text}</td>
+                <td>
+                  <button onClick={i.go}>{i.label}</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
+const NEWS_ICON = { injury: '✚', suspension: '🟥', lineup: '🔁', recovered: '✅', academy: '🎓', development: '📈', season: '📅', info: 'ℹ️', transfer: '⇄', contract: '✍', scouting: '🔍' } as const;
 
 const TRAINING: { id: TrainingSetting; label: string; help: string }[] = [
   { id: 'assistant', label: 'asistent', help: 'Asistent volí podle programu: tvrdě, když je do zápasu týden, lehce těsně před zápasem.' },
@@ -43,6 +85,7 @@ export function HomeScreen() {
 
   return (
     <div className="grid cols-2">
+      <Decisions />
       <section className="card">
         <h3>Další zápas</h3>
         {next ? (

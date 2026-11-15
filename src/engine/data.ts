@@ -218,6 +218,8 @@ export interface Balance {
     goals: { leagueSlack: number; cupTargetRoundByLevelAndSize: Record<`${Level}`, Record<`${ClubSize}`, number>> };
   };
   rotation: { minCondition: number };
+  transfers: TransferBalance;
+  scouting: ScoutingBalance;
 }
 
 export type TrainingIntensity = 'light' | 'normal' | 'hard';
@@ -552,6 +554,7 @@ export function validateGameData(raw: RawGameData): GameData {
       'rating', 'attributes', 'squad', 'strength', 'age', 'profile', 'potential', 'simpleResults',
       'match', 'condition', 'form', 'injuries', 'discipline', 'ratings', 'ai',
       'development', 'academy', 'squads', 'retirement', 'training', 'rotation', 'calibration', 'economy', 'board',
+      'transfers', 'scouting',
     ])
       if (!isObj(raw.balance[key])) problems.push(`balance.${key}: chybí`);
     if (problems.length === 0) {
@@ -632,4 +635,84 @@ export function loadDefaultData(): GameData {
     tactics: tacticsJson,
     pyramid: pyramidJson,
   });
+}
+
+export interface TransferBalance {
+  leagueValueFactor: Record<`${Level}`, number>;
+  leagueValueAdjustMonths: number;
+  value: {
+    base: number;
+    pivot: number;
+    growth: number;
+    ageFactor: [number, number][];
+    potentialPerPoint: number;
+    potentialUntilAge: number;
+    formRange: [number, number];
+    contractFactor: Record<'3' | '2' | '1summer' | '1afterWindow' | '1winter', number>;
+    min: number;
+    round: number;
+  };
+  windows: { summer: [string, string]; winter: [string, string] };
+  negotiation: {
+    maxRounds: number;
+    listedDiscount: [number, number];
+    unwillingMarkup: [number, number];
+    importanceStarter: number;
+    importanceRotation: number;
+    importanceSurplus: number;
+    needMoneyDiscount: number;
+    deadlineDays: number;
+    deadlineDiscount: number;
+    installmentPremium: number;
+    agentShare: number;
+  };
+  personal: {
+    lowerLeagueMarkup: number;
+    higherLeagueDiscount: number;
+    acceptMargin: number;
+    signingBonusMonths: [number, number];
+    freeAgentBonusMonths: [number, number];
+    years: [number, number];
+  };
+  renewal: { fromYearsBefore: number; raise: number; formRaise: number; unhappyMinutesShare: number; unhappyMarkup: number; aiKeepTop: number };
+  freeAgents: {
+    demandDropPerMonth: [number, number];
+    minDemand: number;
+    fsDropAfterMonths: number;
+    fsDropPerMonth: number;
+    poolTarget: number;
+    poolRefillBelow: number;
+    poolMeanOffset: number;
+    poolMaxNewPerMonth: number;
+    poolLevelMix: Partial<Record<`${Level}`, number>>;
+    poolAge: [number, number];
+    maxMonths: number;
+  };
+  ai: {
+    upgradeMargin: number;
+    buyBelowTargetBy: number;
+    spendShareOfCash: number;
+    reserveMonths: number;
+    buysPerWindow: number;
+    listSurplusOver: number;
+    loanYoungUntil: number;
+    loanMinCelGap: number;
+    candidateSample: number;
+    offersForUserChance: number;
+    releaseAtWindowEnd: boolean;
+  };
+  loans: { defaultWageShare: number; optionFactor: number };
+  release: { severanceShare: number };
+}
+
+export interface ScoutingBalance {
+  levels: Record<'začátečník' | 'zkušený' | 'elitní', { accuracy: number; salary: number }>;
+  observationsPerMonth: number;
+  maxScouts: number;
+  candidates: number;
+  publicAccuracy: Partial<Record<`${Level}`, number>>;
+  ownAccuracy: number;
+  youthMaxAge: number;
+  tips: { chancePerScoutMonth: number; age: [number, number]; potBonus: [number, number]; cost: [number, number]; persuadeChance: number };
+  exPlayerScout: { eliteFrom: number; experiencedFrom: number };
 }

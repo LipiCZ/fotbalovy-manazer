@@ -160,6 +160,24 @@ try {
     if (after !== before + 1) throw new Error(`A-tým měl ${before}, po přesunu ${after}`);
   });
 
+  await check('přestupy: volný hráč podepsán, skaut najat', async () => {
+    await page.getByRole('navigation').getByRole('button', { name: 'Přestupy' }).click();
+    await page.getByText('Přestupní okno je otevřené (letní).').waitFor();
+    await page.getByRole('button', { name: 'Hledat hráče' }).click();
+    await page.locator('table.data tbody tr').first().waitFor();
+    await shot('17-prestupy');
+    await page.getByRole('button', { name: 'Volní hráči' }).click();
+    await page.locator('table.data tbody tr button.link').first().click();
+    await page.getByRole('heading', { name: 'Smlouva a přestupy' }).waitFor();
+    await page.getByRole('button', { name: 'Podepsat', exact: true }).click();
+    await page.getByText(/podepsal smlouvu/).waitFor();
+    await shot('18-podpis-volneho-hrace');
+    await page.getByRole('navigation').getByRole('button', { name: 'Skauting' }).click();
+    await page.getByRole('button', { name: 'Najmout' }).first().click();
+    await page.getByLabel(/úkol skauta/).first().selectOption({ index: 2 });
+    await shot('19-skauting');
+  });
+
   for (const year of [2027, 2028, 2029, 2030]) {
     await check(`sezóna ${year}/${String(year + 1).slice(2)} až do konce`, async () => {
       await page.getByRole('button', { name: 'Přeskočit na konec sezóny' }).click();

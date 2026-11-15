@@ -5,7 +5,7 @@
 
 import type { GameData } from '../data.ts';
 import { overall } from '../players/rating.ts';
-import type { Club, CompetitionId, Player, Position } from '../types.ts';
+import { FREE_AGENT, type Club, type CompetitionId, type Player, type Position } from '../types.ts';
 import {
   buildCompetitions,
   finalStandings,
@@ -20,6 +20,8 @@ import { book, ensureContracts, expectedRevenue, leaguePrize } from './finance.t
 import { academyIntake, exactAge, manageSquads, retirementChance } from './development.ts';
 import { barrageOutcomes, regularTable, seasonRngOf } from './postseason.ts';
 import { allowedGroups, canPlayIn, levelOfCompetition, membersOf, thirdLevelGroups, type Membership } from './pyramid.ts';
+import { aiMarketTick, dropFromUserLineup, endLoans, expireContracts, isUserOrg, ownerOf, toFreeAgent, writeOffRegistration } from './market.ts';
+import { exPlayerScoutOffer } from './scouting.ts';
 import { emptyStats, type GameState, type Movement, type NewsItem, type SeasonRecord } from './state.ts';
 
 const nameOf = (p: Player) => `${p.firstName} ${p.lastName}`;
@@ -177,7 +179,8 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
   const pr = balance.development.potentialRaise;
   const retired = new Set<string>();
   for (const p of state.players) {
-    if (p.academy) continue;
+    // Free agents retire during the season (freeAgentTick).
+    if (p.academy || p.clubId === FREE_AGENT) continue;
     const s = state.playerStats[p.id] ?? emptyStats();
     const clubMatches = (() => {
       let n = 0;
@@ -216,12 +219,30 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
         level: state.membership[p.clubId] ? levelOfCompetition(data, state.membership[p.clubId] as CompetitionId) : null,
         professionalism: p.hidden.professionalism,
         injuryDays: p.state.seasonInjuryDays ?? 0,
+        contractNextSeason: p.contract !== undefined && p.contract.until >= `${state.seasonYear + 2}-06-30`,
       },
       balance,
     );
-    if (chance > 0 && rng.fork(p.id).chance(chance)) {
+    const prng = rng.fork(p.id);
+    if (chance > 0 && prng.chance(chance)) {
+      const user = isUserOrg(state, data, ownerOf(p));
+      // Instead of retiring, some players go on in a lower competition (CSM addition, phase 6).
+      const dd = balance.retirement.dropDownInstead;
+      const level = state.membership[p.clubId] ? levelOfCompetition(data, state.membership[p.clubId] as CompetitionId) : 3;
+      if (level < 3 && overall(p, balance) >= balance.strength.starterMeanByLevel['3'] + dd.minCelAboveLeague && prng.chance(dd.chance)) {
+        if (user) news.push({ date: newStart, kind: 'season', playerId: p.id, text: `${nameOf(p)} odchází dohrát kariéru do nižší soutěže.` });
+        writeOffRegistration(state, data, p, newStart, `odchod: ${nameOf(p)}`);
+        if (user) dropFromUserLineup(state, p.id);
+        toFreeAgent(p, newStart);
+        p.lowerLeagueOnly = true;
+        continue;
+      }
       retired.add(p.id);
-      if (p.clubId === state.userClubId) news.push({ date: newStart, kind: 'season', playerId: p.id, text: `${nameOf(p)} (${Math.floor(exactAge(p.birthDate, newStart))}) ukončil kariéru.` });
+      if (user) {
+        news.push({ date: newStart, kind: 'season', playerId: p.id, text: `${nameOf(p)} (${Math.floor(exactAge(p.birthDate, newStart))}) ukončil kariéru.` });
+        const scout = exPlayerScoutOffer(state, data, p, prng.fork('staff'));
+        if (scout) news.push({ date: newStart, kind: 'scouting', text: `${nameOf(p)} by v klubu rád zůstal jako skaut (${scout.level}). Najdeš ho mezi kandidáty na obrazovce Skauting.` });
+      }
     }
   }
 
@@ -235,7 +256,10 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
       } else retired.add(p.id);
     }
   }
+  for (const p of state.players) if (retired.has(p.id)) writeOffRegistration(state, data, p, newStart, `konec kariéry: ${nameOf(p)}`);
   state.players = state.players.filter((p) => !retired.has(p.id));
+  // Loans end on 30 June.
+  endLoans(state, data, newStart, news);
 
   // Reset the season state of players.
   for (const p of state.players) {
@@ -251,6 +275,8 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
   state.stages = [];
   invalidateRuntime(state);
 
+  // Contracts that ended: the manager's unrenewed players and players AI clubs do not need leave.
+  expireContracts(state, data, newStart, news);
   // July academy intake and squad management.
   news.push(...academyIntake(state, data, newStart, rng.fork('intake')));
   invalidateRuntime(state);
@@ -284,6 +310,9 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
   startCup(state, data);
   startBoardSeason(state, data);
   state.finished = false;
+  // The summer window opens.
+  aiMarketTick(state, data, newStart, rng.fork('market'), news);
+  invalidateRuntime(state);
 
   if (state.user && state.userClubId) {
     state.user.matches = [];

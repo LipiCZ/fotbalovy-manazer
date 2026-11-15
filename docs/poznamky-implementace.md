@@ -23,3 +23,13 @@ Každá položka: co jsem rozhodl, proč, a kde se to dá změnit.
 - **Licence**: k 31. 5. nesmí mít klub hráče záporný stav peněz, jinak −3 body v příští sezóně (počet je návrh).
 - **Cíle vedení**: favorit (1.–2. nejsilnější kádr) má cíl o 1 místo horší než své pořadí, ostatní o 2 místa. Pohár: index kola podle úrovně a velikosti (`board.goals`). Převod umístění na stupně a váhy poháru jsou návrh (`board`).
 - **Otevřená otázka**: má být finanční výsledek třetím cílem vedení? (design, sekce 13 a 14 o tom mluví; zadání zná jen ligu a pohár).
+
+## Fáze 6 – přestupy, smlouvy, skauting
+
+- **Všechna čísla trhu jsou návrh** (`balance.json → transfers`, `scouting`), podrobně v designu (sekce 6 a 8, „Doplněno ve fázi 6“). Laděno na stabilní svět: `calibrate:world` – síla lig za 5 sezón v mezích (1. liga +0,5, 2. +1,9, 3. +1,6), kádry 19–27, hospodaření v mezích.
+- **AI kupuje jen pod svou cílovou silou.** Bez toho se nižší soutěže rychle vyrovnávaly (silnější slabé týmy → méně gólů ve 3. lize). Klub, který je hluboko pod cílem a nic si nemůže dovolit, podepíše „volného hráče ze zahraničí“ – náhrada za trhy, které hra nesimuluje (dřívější dočasné „kotvení“ z fáze 4 je tím nahrazené).
+- **Konec smlouvy**: hráči manažera bez prodloužení odcházejí zadarmo. Pojistka: když by kádr (A i B) klesl pod minimum soutěže, asistent prodlouží nejlepším o rok a napíše to do novinek. Upozornění na končící smlouvy je celou sezónu na Domů („K rozhodnutí“).
+- **Odhady**: vlastní hráči CEL přesně, POT ±3 (dřív přesně); 1. liga ±10, 2. liga ±14, ostatní neznámí bez skauta. Atributy cizích hráčů se ukážou jen při přesnosti aspoň ±10.
+- **Účetnictví přestupů**: prodej = výnos (nepeněžní) + pohledávka, peníze chodí ve splátkách („Prodej hráčů (příjmy)“ v peněžních tocích). Nákup: platby jsou investiční tok, aktivovaná registrace se odepisuje měsíčně.
+- **Zjednodušení**: AI-AI hostování není; AI kluby mladé jen nabízejí manažerovi. Nabídky AI na hráče manažera chodí jen v okně (design říká „kdykoli“ – mimo okno by stejně jen čekaly). Bez zpětného odkupu, práva dorovnat, bonusů, finančního ředitele a poptávek.
+- **Otevřené otázky**: (1) Mají AI kluby smět kupovat i mimo svou nejslabší pozici (např. investice do talentů)? (2) Má mít manažer limit kádru (např. 30 seniorů)? Teď ho hlídá jen rozpočet. (3) Rozpočet na přestupy od vedení se zatím jen ukazuje, nevynucuje – má překročení snížit hodnocení vedení?

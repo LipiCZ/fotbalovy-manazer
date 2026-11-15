@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { FREE_AGENT } from '../src/engine/types.ts';
 import { loadDefaultData } from '../src/engine/data.ts';
 import { advanceToNextUserMatch, newGame, playToSeasonEnd } from '../src/engine/game/advance.ts';
 import { boardGoals, evaluateSeason, wouldBeSacked } from '../src/engine/game/board.ts';
@@ -14,7 +15,7 @@ describe('ekonomika (design, sekce 13)', () => {
   it('na začátku: finance všech klubů, smlouvy všech hráčů, rozpočet a cíle vedení', () => {
     const g = game();
     expect(Object.keys(g.finances)).toHaveLength(data.clubs.length);
-    expect(g.players.every((p) => p.contract && p.contract.wage > 0 && p.contract.until.endsWith('-06-30'))).toBe(true);
+    expect(g.players.filter((p) => p.clubId !== FREE_AGENT).every((p) => p.contract && p.contract.wage > 0 && p.contract.until.endsWith('-06-30'))).toBe(true);
     expect(g.board?.goals.leaguePosition).toBeGreaterThan(0);
     expect(g.board?.budget.wageCap).toBeGreaterThan(0);
     const f = g.finances['jablonec']!;
@@ -60,7 +61,7 @@ describe('ekonomika (design, sekce 13)', () => {
     const g = game();
     for (let i = 0; i < 5; i++) advanceToNextUserMatch(g, data);
     const st = statements(g.finances['jablonec']!);
-    expect(st.equity).toBeCloseTo(st.assets.stadium + st.assets.registrations + st.assets.cash - st.liabilities.loans - st.liabilities.overdue, 0);
+    expect(st.equity).toBeCloseTo(st.assets.stadium + st.assets.registrations + st.assets.receivables + st.assets.cash - st.liabilities.loans - st.liabilities.payables - st.liabilities.overdue, 0);
     expect(st.result).toBeCloseTo([...st.revenues, ...st.costs].reduce((s, [, v]) => s + v, 0), 0);
   });
 
@@ -139,7 +140,7 @@ describe('ukládání verze 3', () => {
     const { save: migrated, warnings } = parseSave(save, data);
     expect(warnings.join(' ')).toMatch(/ekonomikou/);
     expect(migrated.game.finances['jablonec']).toBeDefined();
-    expect(migrated.game.players.every((p) => p.contract)).toBe(true);
+    expect(migrated.game.players.filter((p) => p.clubId !== FREE_AGENT).every((p) => p.contract)).toBe(true);
     advanceToNextUserMatch(migrated.game, data);
   });
 

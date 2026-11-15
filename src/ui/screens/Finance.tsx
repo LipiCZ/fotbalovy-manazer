@@ -139,7 +139,7 @@ export function FinanceScreen() {
               </tr>
             </tbody>
           </table>
-          <p className="help">Odpisy stadionu jsou náklad, ale peníze z účtu neubírají. Proto se výsledek a stav peněz liší.</p>
+          <p className="help">Odpisy stadionu a hráčských smluv jsou náklad, ale peníze z účtu neubírají; prodej hráče je výnos hned, peníze chodí ve splátkách. Proto se výsledek a stav peněz liší.</p>
         </section>
         <section className="card">
           <h3>Rozvaha (zjednodušená)</h3>
@@ -153,10 +153,22 @@ export function FinanceScreen() {
                 <td>Hráčské smlouvy</td>
                 <td className="num">{money(st.assets.registrations)}</td>
               </tr>
+              {st.assets.receivables > 0 && (
+                <tr>
+                  <td>Pohledávky z přestupů</td>
+                  <td className="num">{money(st.assets.receivables)}</td>
+                </tr>
+              )}
               <tr>
                 <td>Peníze</td>
                 <td className="num">{money(st.assets.cash)}</td>
               </tr>
+              {st.liabilities.payables > 0 && (
+                <tr>
+                  <td>Splátky přestupů</td>
+                  <td className="num bad">{money(-st.liabilities.payables)}</td>
+                </tr>
+              )}
               <tr>
                 <td>Úvěry</td>
                 <td className={`num ${st.liabilities.loans > 0 ? 'bad' : ''}`}>{money(-st.liabilities.loans)}</td>

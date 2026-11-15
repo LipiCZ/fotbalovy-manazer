@@ -12,7 +12,9 @@ import {
 } from '../players/generate.ts';
 import { overall } from '../players/rating.ts';
 import type { Rng } from '../rng.ts';
-import { GK_TECH, OUTFIELD_TECH, PHYSICAL, type AttributeId, type Level, type Player, type Position } from '../types.ts';
+import { FREE_AGENT, GK_TECH, OUTFIELD_TECH, PHYSICAL, type AttributeId, type Level, type Player, type Position } from '../types.ts';
+import { newContract } from './finance.ts';
+import { releasePlayer } from './market.ts';
 import type { GameState, NewsItem } from './state.ts';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -158,6 +160,8 @@ export function developmentTick(state: GameState, data: GameData, ctx: TickConte
   const youthLeagueCel = (p: Player) => overall(p, balance) + d.minutes.levelOptimum[0] + 1;
 
   for (const p of state.players) {
+    // Free agents do not train with a club (their fitness drops in freeAgentTick).
+    if (p.clubId === FREE_AGENT) continue;
     const age = exactAge(p.birthDate, ctx.date);
     const cel = overall(p, balance);
     const stats = state.playerStats[p.id];
@@ -219,7 +223,7 @@ export function idAllocator(state: GameState): () => string {
 }
 
 /** A new academy player (birth date relative to 1 July of the current season). */
-function generateYouth(clubId: string, level: Level, size: 1 | 2 | 3 | 4 | 5, state: GameState, data: GameData, rng: Rng, id: string): Player {
+export function generateYouth(clubId: string, level: Level, size: 1 | 2 | 3 | 4 | 5, state: GameState, data: GameData, rng: Rng, id: string): Player {
   const { balance } = data;
   const a = balance.academy;
   const template = balance.squad.templateByLevel['3'];
@@ -338,9 +342,17 @@ function seniorSquad(state: GameState, clubId: string): Player[] {
   return state.players.filter((p) => p.clubId === clubId && !p.academy);
 }
 
-function remove(state: GameState, ids: Set<string>): void {
+/** Released players join the free-agent pool when they are good and young enough, the others leave football. */
+function remove(state: GameState, data: GameData, ids: Set<string>, date: string): void {
   if (ids.size === 0) return;
-  state.players = state.players.filter((p) => !ids.has(p.id));
+  const minCel = data.balance.strength.starterMeanByLevel['3'] - 8;
+  const gone = new Set<string>();
+  for (const p of state.players) {
+    if (!ids.has(p.id)) continue;
+    if (exactAge(p.birthDate, date) < 34 && overall(p, data.balance) >= minCel) releasePlayer(state, data, p, { severance: false });
+    else gone.add(p.id);
+  }
+  state.players = state.players.filter((p) => !gone.has(p.id));
 }
 
 /**
@@ -441,9 +453,23 @@ export function manageSquads(state: GameState, data: GameData, ctx: SquadContext
             .sort(byCelDesc)[0];
           if (pick) break;
         }
+        // From phase 6 the free-agent pool comes before generating a new player.
+        const free =
+          pick === undefined
+            ? state.players
+                .filter((p) => p.clubId === FREE_AGENT && (!gkNeeded || p.positions[0] === 'GK') && (!p.lowerLeagueOnly || levelOf(state, targetClub, data) === 3))
+                .filter((p) => cel(p) >= ctx.leagueCelOf(targetClub) - 8 && cel(p) <= ctx.leagueCelOf(targetClub) + 4)
+                .sort(byCelDesc)[0]
+            : undefined;
         if (pick) {
           pick.academy = false;
           pick.clubId = targetClub;
+        } else if (free) {
+          const level = levelOf(state, targetClub, data) ?? 3;
+          free.clubId = targetClub;
+          delete free.freeSince;
+          delete free.lowerLeagueOnly;
+          free.contract = newContract(free, level, reserve, data.clubs.find((c) => c.id === club.id)?.size ?? 1, state.seasonYear, balance, ctx.rng);
         } else {
           const strength = ctx.leagueCelOf(targetClub);
           const main: Position = gkNeeded ? 'GK' : ctx.rng.pick(['CB', 'CM', 'ST', 'LB', 'RW'] as Position[]);
@@ -461,21 +487,7 @@ export function manageSquads(state: GameState, data: GameData, ctx: SquadContext
       }
     };
     fill(squadA, limitsA.min, club.id, [squadB, () => academy().filter((p) => age(p) >= 16)], false);
-    // Until transfers exist (phase 6): a club far below its target strength signs free players.
-    const target = balance.strength.starterMeanByLevel[`${levelA}`] + balance.strength.sizeOffset[`${club.size}`];
-    const fa = balance.squads.freeAgents;
-    for (let i = 0; i < fa.maxPerWindow; i++) {
-      const top11 = squadA().map(cel).sort((x, y) => y - x).slice(0, 11);
-      const strength = top11.reduce((s, v) => s + v, 0) / Math.max(1, top11.length);
-      if (strength >= target - fa.anchorGap) break;
-      const main = ctx.rng.pick(['CB', 'CM', 'ST', 'LB', 'RW', 'DM', 'AM'] as Position[]);
-      const signed = generatePlayer({ clubId: club.id, main, role: 'S', targetMean: target, reserve: false }, newId(), state.seasonYear, data, ctx.rng);
-      const { role: _r, ...player } = signed;
-      void _r;
-      state.players.push({ ...player, state: { ...player.state, seniorMonths: 60 }, career: [], celHistory: [overall(player, balance)] });
-      const weakest = squadA().filter((p) => p.id !== player.id && p.positions[0] !== 'GK').sort(byKeepAsc)[0];
-      if (weakest && squadA().length > limitsA.max) released.add(weakest.id);
-    }
+    // A club far below its target strength strengthens on the transfer market (market.ts, phase 6).
     // Goalkeepers in the A-team.
     if (squadA().filter((p) => p.positions[0] === 'GK').length < balance.squads.minGoalkeepers)
       fill(() => squadA().filter((p) => p.positions[0] === 'GK'), balance.squads.minGoalkeepers, club.id, [squadB, academy], false);
@@ -496,6 +508,6 @@ export function manageSquads(state: GameState, data: GameData, ctx: SquadContext
       fill(squadB, limitsB.min, bClub.id, [() => academy().filter((p) => age(p) >= 16)], true);
     }
   }
-  remove(state, released);
+  remove(state, data, released, ctx.date);
   return news;
 }

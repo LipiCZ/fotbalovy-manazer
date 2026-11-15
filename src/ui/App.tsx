@@ -4,6 +4,8 @@ import { Layout } from './Layout.tsx';
 import { SaveDialog } from './SaveDialog.tsx';
 import { CompetitionsScreen } from './screens/Competitions.tsx';
 import { FinanceScreen } from './screens/Finance.tsx';
+import { ScoutingScreen } from './screens/Scouting.tsx';
+import { TransfersScreen } from './screens/Transfers.tsx';
 import { HomeScreen } from './screens/Home.tsx';
 import { MatchScreen } from './screens/Match.tsx';
 import { NewGameScreen } from './screens/NewGame.tsx';
@@ -31,6 +33,10 @@ function GameScreen({ screen }: { screen: Screen }) {
       return <SeasonEndScreen />;
     case 'finance':
       return <FinanceScreen />;
+    case 'transfers':
+      return <TransfersScreen key={screen.tab ?? ''} {...(screen.tab ? { tab: screen.tab } : {})} />;
+    case 'scouting':
+      return <ScoutingScreen />;
     default:
       return <HomeScreen />;
   }

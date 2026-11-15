@@ -10,7 +10,7 @@ import { startNewSeason } from '../engine/game/transition.ts';
 import { repayLoan, setTicketPrice, takeLoan } from '../engine/game/finance.ts';
 import { moveUserPlayer, type SquadTarget } from '../engine/game/userTeam.ts';
 import { makeSave, parseSave, serializeSave } from '../engine/game/saveFormat.ts';
-import type { GameState, TrainingSetting, UserTeamState } from '../engine/game/state.ts';
+import type { GameState, NewsItem, TrainingSetting, UserTeamState } from '../engine/game/state.ts';
 import type { CompetitionId, Player } from '../engine/types.ts';
 import type { SaveListItem, SaveStorage, Slot } from './persistence.ts';
 
@@ -24,7 +24,14 @@ export type Screen =
   | { name: 'match'; reportIndex: number }
   | { name: 'competitions'; competitionId?: CompetitionId }
   | { name: 'seasonEnd' }
-  | { name: 'finance' };
+  | { name: 'finance' }
+  | { name: 'transfers'; tab?: TransfersTab }
+  | { name: 'scouting' };
+
+export type TransfersTab = 'search' | 'offers' | 'free' | 'mine';
+
+/** Result of a market action: a message for the manager (ok = good news). */
+export type MarketAction = (game: GameState, data: GameData, news: NewsItem[]) => { ok?: boolean; message: string } | string | null | void;
 
 export interface Message {
   kind: 'info' | 'warn' | 'error';
@@ -56,6 +63,8 @@ export interface AppState {
   setTicketPrice(price: number): void;
   takeLoan(amount: number): void;
   repayLoan(amount: number): void;
+  /** Transfers, contracts and scouting (engine functions in game/market.ts and game/scouting.ts). */
+  market(fn: MarketAction): void;
   saveTo(slot: Slot): Promise<void>;
   loadFrom(slot: Slot): Promise<void>;
   refreshSaves(): Promise<void>;
@@ -202,6 +211,17 @@ export function createAppStore(deps: StoreDeps): StoreApi<AppState> {
         if (!game) return;
         const error = takeLoan(game, data, amount);
         set({ message: error ? { kind: 'warn', text: error } : { kind: 'info', text: 'Úvěr přijat.' } });
+        bump();
+      },
+      market(fn) {
+        const { game, data } = get();
+        if (!game) return;
+        const news: NewsItem[] = [];
+        const r = fn(game, data, news);
+        game.news.push(...news);
+        invalidateRuntime(game);
+        if (typeof r === 'string') set({ message: { kind: 'info', text: r } });
+        else if (r) set({ message: { kind: r.ok === false ? 'warn' : 'info', text: r.message } });
         bump();
       },
       repayLoan(amount) {

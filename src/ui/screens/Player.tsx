@@ -5,6 +5,9 @@ import { ATTRIBUTE_LABEL_CS, GK_TECH, OUTFIELD_TECH, PHYSICAL, POSITION_LABEL_CS
 import { getAppStore, useGame } from '../../state/store.ts';
 import { clubOf, ConditionBar, fullName, playerOf, RatingBadge } from '../components.tsx';
 import { formatDate, num } from '../format.ts';
+import { estimateOf } from '../../engine/game/scouting.ts';
+import { clubName, isUserOrg } from '../../engine/game/market.ts';
+import { PlayerMarketPanel, rangeLabel } from '../market.tsx';
 
 function AttributeList({ title, ids, values, weights }: { title: string; ids: readonly AttributeId[]; values: Record<AttributeId, number>; weights: Partial<Record<AttributeId, number>> }) {
   return (
@@ -46,6 +49,11 @@ export function PlayerScreen({ playerId }: { playerId: string }) {
   const club = clubOf(data, p.clubId);
   const isGk = main === 'GK';
   const s = p.state;
+  const own = isUserOrg(game, data, p.clubId);
+  const est = estimateOf(game, data, p);
+  // Attributes of other clubs' players are visible only when the club knows them well enough.
+  const attributesKnown = own || (est !== null && est.accuracy <= data.balance.scouting.publicAccuracy['1']!);
+  const potMid = est ? Math.round((est.pot[0] + est.pot[1]) / 2) : null;
 
   return (
     <div className="grid">
@@ -58,14 +66,14 @@ export function PlayerScreen({ playerId }: { playerId: string }) {
             <h2>{fullName(p)}</h2>
             <p className="muted">
               {p.positions.map((x) => POSITION_LABEL_CS[x]).join(' / ')} · {ageOn(p.birthDate, seasonStartDate(game.seasonYear))} let (nar. {formatDate(p.birthDate)}) ·{' '}
-              {club?.name}
+              {club?.name ?? clubName(data, p.clubId)}
             </p>
           </div>
           <div className="kpis">
-            <div><span>CEL</span><span>{overall(p, b)}</span></div>
-            <div><span>POT</span><span>{p.pot}</span></div>
-            <div><span>TS</span><span>{ts(p, b)}</span></div>
-            <div><span>FS</span><span>{fs(p, b)}</span></div>
+            <div title={est ? `odhad, přesnost ±${est.accuracy}` : 'neznámý hráč'}><span>CEL</span><span>{own ? overall(p, b) : rangeLabel(est?.cel)}</span></div>
+            <div title={est ? `odhad, přesnost ±${est.accuracy}` : 'neznámý hráč'}><span>POT</span><span>{rangeLabel(est?.pot)}</span></div>
+            {attributesKnown && <div><span>TS</span><span>{ts(p, b)}</span></div>}
+            {attributesKnown && <div><span>FS</span><span>{fs(p, b)}</span></div>}
           </div>
         </div>
         <div className="row wrap" style={{ gap: 24, marginTop: 8 }}>
@@ -80,9 +88,15 @@ export function PlayerScreen({ playerId }: { playerId: string }) {
           {s.suspensionMatches > 0 && <span className="bad">🟥 stopka na {s.suspensionMatches} {s.suspensionMatches === 1 ? 'zápas' : 'zápasy'}</span>}
         </div>
       </section>
+      {game.userClubId && <PlayerMarketPanel p={p} />}
       <section className="card grid cols-3">
-        <AttributeList title={isGk ? 'TS – brankářské' : 'TS – technické'} ids={isGk ? GK_TECH : OUTFIELD_TECH} values={p.attributes} weights={weights.tech} />
-        <AttributeList title="FS – fyzické" ids={PHYSICAL} values={p.attributes} weights={weights.phys} />
+        {!attributesKnown && (
+          <p className="muted" style={{ gridColumn: '1 / -1' }}>
+            Atributy hráče přesně neznáš. Pošli na něj skauta – čím lepší skaut a čím déle ho sleduje, tím přesnější odhad.
+          </p>
+        )}
+        {attributesKnown && <AttributeList title={isGk ? 'TS – brankářské' : 'TS – technické'} ids={isGk ? GK_TECH : OUTFIELD_TECH} values={p.attributes} weights={weights.tech} />}
+        {attributesKnown && <AttributeList title="FS – fyzické" ids={PHYSICAL} values={p.attributes} weights={weights.phys} />}
         <div>
           <h3>Sezóna</h3>
           <table className="data">
@@ -105,7 +119,9 @@ export function PlayerScreen({ playerId }: { playerId: string }) {
       <section className="card grid cols-2">
         <div>
           <h3>Vývoj CEL</h3>
-          {(p.celHistory?.length ?? 0) < 2 ? (
+          {!attributesKnown ? (
+            <p className="muted">Vývoj cizích hráčů neznáš.</p>
+          ) : (p.celHistory?.length ?? 0) < 2 ? (
             <p className="muted">Vývoj se zaznamenává každý měsíc, graf se ukáže po prvním měsíci.</p>
           ) : (
             <div style={{ height: 220 }} aria-label="graf vývoje CEL">
@@ -115,7 +131,9 @@ export function PlayerScreen({ playerId }: { playerId: string }) {
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} interval="preserveStartEnd" minTickGap={24} />
                   <YAxis domain={['dataMin - 3', 'dataMax + 3']} tick={{ fontSize: 11, fill: 'var(--muted)' }} allowDecimals={false} />
                   <Tooltip formatter={(v) => [num(Number(v)), 'CEL']} />
-                  <ReferenceLine y={p.pot} stroke="var(--muted)" strokeDasharray="4 4" label={{ value: `POT ${p.pot}`, fontSize: 11, fill: 'var(--muted)', position: 'insideTopRight' }} />
+                  {potMid !== null && (
+                    <ReferenceLine y={potMid} stroke="var(--muted)" strokeDasharray="4 4" label={{ value: `POT ${rangeLabel(est?.pot)}`, fontSize: 11, fill: 'var(--muted)', position: 'insideTopRight' }} />
+                  )}
                   <Line type="monotone" dataKey="cel" stroke="var(--accent)" strokeWidth={2} dot={false} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -147,13 +165,13 @@ export function PlayerScreen({ playerId }: { playerId: string }) {
                     <td>
                       {c.seasonYear}/{String(c.seasonYear + 1).slice(2)}
                     </td>
-                    <td>{clubOf(data, c.clubId)?.shortName}</td>
+                    <td>{clubOf(data, c.clubId)?.shortName ?? clubName(data, c.clubId)}</td>
                     <td>{data.competitions.find((x) => x.id === c.competitionId)?.shortName ?? '–'}</td>
                     <td className="num">{c.apps}</td>
                     <td className="num">{c.goals}</td>
                     <td className="num">{c.assists}</td>
                     <td className="num">{c.avgRating === null ? '–' : num(c.avgRating, 2)}</td>
-                    <td className="num">{c.cel}</td>
+                    <td className="num">{attributesKnown ? c.cel : '–'}</td>
                   </tr>
                 ))}
               </tbody>

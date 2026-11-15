@@ -5,7 +5,7 @@
 import type { Balance, GameData } from '../data.ts';
 import { overall } from '../players/rating.ts';
 import type { Rng } from '../rng.ts';
-import type { ClubSize, CompetitionId, Contract, Level, Player } from '../types.ts';
+import { FREE_AGENT, type ClubSize, type CompetitionId, type Contract, type Level, type Player } from '../types.ts';
 import { addDays, daysBetween, parseDate, seasonDate } from './calendar.ts';
 import { levelOfCompetition } from './pyramid.ts';
 import type { GameState } from './state.ts';
@@ -18,6 +18,7 @@ export type TxType =
   | 'central'
   | 'prize'
   | 'transfersIn'
+  | 'loanIncome'
   | 'otherIncome'
   | 'wages'
   | 'bonuses'
@@ -28,11 +29,14 @@ export type TxType =
   | 'amortization'
   | 'depreciation'
   | 'interest'
+  | 'loanFees'
+  | 'severance'
   | 'otherCost'
   | 'ownerDeposit'
   | 'loan'
   | 'loanRepayment'
   | 'transfersOut'
+  | 'transferReceipts'
   | 'investment';
 
 export type TxKind = 'revenue' | 'cost' | 'financing' | 'investing';
@@ -44,7 +48,9 @@ export const TX: Record<TxType, { kind: TxKind; label: string; cash: boolean }> 
   sponsors: { kind: 'revenue', label: 'Sponzoři', cash: true },
   central: { kind: 'revenue', label: 'Centrální příjmy soutěže', cash: true },
   prize: { kind: 'revenue', label: 'Odměny za umístění a pohár', cash: true },
-  transfersIn: { kind: 'revenue', label: 'Prodej a hostování hráčů', cash: true },
+  // Revenue from a sale is recognised at once; the money comes in installments (transferReceipts).
+  transfersIn: { kind: 'revenue', label: 'Prodej hráčů', cash: false },
+  loanIncome: { kind: 'revenue', label: 'Hostování hráčů', cash: true },
   otherIncome: { kind: 'revenue', label: 'Ostatní výnosy', cash: true },
   wages: { kind: 'cost', label: 'Platy hráčů', cash: true },
   bonuses: { kind: 'cost', label: 'Prémie', cash: true },
@@ -55,11 +61,14 @@ export const TX: Record<TxType, { kind: TxKind; label: string; cash: boolean }> 
   amortization: { kind: 'cost', label: 'Náklady na hráčské smlouvy', cash: false },
   depreciation: { kind: 'cost', label: 'Odpisy stadionu', cash: false },
   interest: { kind: 'cost', label: 'Úroky', cash: true },
+  loanFees: { kind: 'cost', label: 'Poplatky za hostování', cash: true },
+  severance: { kind: 'cost', label: 'Odstupné', cash: true },
   otherCost: { kind: 'cost', label: 'Ostatní náklady', cash: true },
   ownerDeposit: { kind: 'financing', label: 'Vklad majitele', cash: true },
   loan: { kind: 'financing', label: 'Přijatý úvěr', cash: true },
   loanRepayment: { kind: 'financing', label: 'Splátka úvěru', cash: true },
-  transfersOut: { kind: 'investing', label: 'Nákup hráčů', cash: true },
+  transfersOut: { kind: 'investing', label: 'Nákup hráčů (platby)', cash: true },
+  transferReceipts: { kind: 'investing', label: 'Prodej hráčů (příjmy)', cash: true },
   investment: { kind: 'investing', label: 'Investice do stadionu', cash: true },
 };
 
@@ -77,6 +86,9 @@ export interface ClubFinance {
   stadiumValue: number;
   /** Unamortised player registrations (phase 6). */
   registrations: number;
+  /** Transfer installments still to pay / to receive. */
+  payables: number;
+  receivables: number;
   /** Expected yearly revenue at the start of the season (budget scale). */
   expectedRevenue: number;
   capacity: number;
@@ -192,6 +204,8 @@ export function initFinances(state: GameState, data: GameData, rng: Rng): void {
       loans: 0,
       stadiumValue: reserve ? 0 : capacity * e.stadium.valuePerSeat[`${level}`],
       registrations: 0,
+      payables: 0,
+      receivables: 0,
       expectedRevenue: revenue,
       capacity,
       ticketPrice: e.ticketPrice.reference[`${level}`],
@@ -208,7 +222,7 @@ export function initFinances(state: GameState, data: GameData, rng: Rng): void {
 /** Every player gets a contract (also academy players promoted later). */
 export function ensureContracts(state: GameState, data: GameData, rng: Rng): void {
   for (const p of state.players) {
-    if (p.contract) continue;
+    if (p.contract || p.clubId === FREE_AGENT) continue;
     const level = levelOf(state, data, p.clubId);
     p.contract = newContract(p, level, isReserve(data, p.clubId), clubSize(data, payingClub(data, p.clubId)), state.seasonYear, data.balance, rng.fork(p.id));
   }
@@ -224,8 +238,16 @@ export function monthlyFinance(state: GameState, data: GameData, date: string): 
   const e = data.balance.economy;
   const wageBill = new Map<string, number>();
   for (const p of state.players) {
+    const wage = p.contract?.wage ?? 0;
+    if (wage === 0) continue;
+    // On loan: the borrowing club pays its share, the lending club the rest.
+    const share = p.loan ? p.loan.wageShare : 1;
     const payer = payingClub(data, p.clubId);
-    wageBill.set(payer, (wageBill.get(payer) ?? 0) + (p.contract?.wage ?? 0));
+    wageBill.set(payer, (wageBill.get(payer) ?? 0) + wage * share);
+    if (p.loan) {
+      const lender = payingClub(data, p.loan.fromClubId);
+      wageBill.set(lender, (wageBill.get(lender) ?? 0) + wage * (1 - share));
+    }
   }
   for (const club of data.clubs) {
     const f = state.finances[club.id];
@@ -233,7 +255,7 @@ export function monthlyFinance(state: GameState, data: GameData, date: string): 
     const level = levelOf(state, data, club.id);
     const s = f.expectedRevenue / 12;
     f.monthlyCash.push([date, f.cash]);
-    book(state, club.id, 'wages', -(wageBill.get(club.id) ?? 0), date, 'výplaty hráčů');
+    book(state, club.id, 'wages', -Math.round(wageBill.get(club.id) ?? 0), date, 'výplaty hráčů');
     book(state, club.id, 'staff', -round(s * e.fixedCosts.staff), date);
     book(state, club.id, 'stadium', -round(s * e.fixedCosts.stadium), date);
     book(state, club.id, 'academy', -round(s * e.fixedCosts.academy), date);
@@ -351,8 +373,8 @@ export interface Statements {
   revenues: [TxType, number][];
   costs: [TxType, number][];
   result: number;
-  assets: { stadium: number; registrations: number; cash: number };
-  liabilities: { loans: number; overdue: number };
+  assets: { stadium: number; registrations: number; receivables: number; cash: number };
+  liabilities: { loans: number; payables: number; overdue: number };
   equity: number;
   financing: [TxType, number][];
 }
@@ -363,9 +385,9 @@ export function statements(f: ClubFinance): Statements {
   const costs = entries.filter(([t]) => TX[t].kind === 'cost');
   const financing = entries.filter(([t]) => TX[t].kind === 'financing' || TX[t].kind === 'investing');
   const result = [...revenues, ...costs].reduce((s, [, v]) => s + v, 0);
-  const assets = { stadium: f.stadiumValue, registrations: f.registrations, cash: Math.max(0, f.cash) };
-  const liabilities = { loans: f.loans, overdue: Math.max(0, -f.cash) };
-  const equity = assets.stadium + assets.registrations + assets.cash - liabilities.loans - liabilities.overdue;
+  const assets = { stadium: f.stadiumValue, registrations: f.registrations, receivables: f.receivables ?? 0, cash: Math.max(0, f.cash) };
+  const liabilities = { loans: f.loans, payables: f.payables ?? 0, overdue: Math.max(0, -f.cash) };
+  const equity = assets.stadium + assets.registrations + assets.receivables + assets.cash - liabilities.loans - liabilities.payables - liabilities.overdue;
   return { revenues, costs, result, assets, liabilities, equity, financing };
 }
 
@@ -382,7 +404,13 @@ export function runwayMonths(f: ClubFinance): number | null {
 }
 
 export function wageBill(state: GameState, data: GameData, clubId: string): number {
-  return 12 * state.players.filter((p) => payingClub(data, p.clubId) === clubId).reduce((s, p) => s + (p.contract?.wage ?? 0), 0);
+  let sum = 0;
+  for (const p of state.players) {
+    const wage = p.contract?.wage ?? 0;
+    if (payingClub(data, p.clubId) === clubId) sum += wage * (p.loan ? p.loan.wageShare : 1);
+    if (p.loan && payingClub(data, p.loan.fromClubId) === clubId) sum += wage * (1 - p.loan.wageShare);
+  }
+  return Math.round(12 * sum);
 }
 
 export function seasonBudget(f: ClubFinance, balance: Balance): Budget {

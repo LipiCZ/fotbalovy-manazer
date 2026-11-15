@@ -205,6 +205,30 @@ export interface Player {
   /** CEL at every monthly development tick (oldest first). */
   celHistory?: number[];
   contract?: Contract;
+  /** On the transfer list (design, section 8). */
+  listed?: { kind: 'sale' | 'loan'; askingPrice: number };
+  /** On loan at clubId from fromClubId. */
+  loan?: PlayerLoan;
+  /** Free agent since (clubId === FREE_AGENT). */
+  freeSince?: string;
+  /** Free agent who prefers to play a lower competition instead of retiring. */
+  lowerLeagueOnly?: boolean;
+  /** Capitalised purchase cost amortised over the contract (design, section 13). */
+  registration?: { cost: number; bookValue: number; monthly: number };
+  /** Share of a future transfer fee owed to a former club. */
+  sellOn?: { clubId: string; share: number };
+  /** Competition value factor moving gradually after a transfer (anti-exploit, design section 8). */
+  valueLeague?: { from: number; to: number; since: string };
+}
+
+export const FREE_AGENT = 'volny-hrac';
+
+export interface PlayerLoan {
+  fromClubId: string;
+  until: string;
+  /** Share of the wage paid by the borrowing club. */
+  wageShare: number;
+  optionFee?: number;
 }
 
 export interface Contract {

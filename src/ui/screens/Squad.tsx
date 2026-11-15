@@ -7,6 +7,8 @@ import { ageOn, fs, overall, seasonStartDate, ts } from '../../engine/players/ra
 import { POSITION_LABEL_CS, POSITIONS, type Player } from '../../engine/types.ts';
 import { getAppStore, useGame } from '../../state/store.ts';
 import { ConditionBar, fullName, RatingBadge, SortableTable, StatusIcons, type Column } from '../components.tsx';
+import { estimateOf } from '../../engine/game/scouting.ts';
+import { estimateMid, rangeLabel } from '../market.tsx';
 import { num } from '../format.ts';
 
 export function SquadScreen() {
@@ -53,8 +55,9 @@ export function SquadScreen() {
     { key: 'name', label: 'Jméno', render: (p) => fullName(p), sortValue: (p) => `${p.lastName} ${p.firstName}` },
     { key: 'age', label: 'Věk', numeric: true, render: (p) => ageOn(p.birthDate, onDate), sortValue: (p) => ageOn(p.birthDate, onDate) },
     { key: 'cel', label: 'CEL', title: 'celkové hodnocení na hlavní pozici', numeric: true, render: (p) => <strong>{overall(p, b)}</strong>, sortValue: (p) => overall(p, b) },
-    // POT is shown exactly for own players in the MVP; phase 6 replaces it with a scouting estimate.
-    { key: 'pot', label: 'POT', title: 'potenciál', numeric: true, render: (p) => p.pot, sortValue: (p) => p.pot },
+    // POT is an estimate (design, section 6): own players ± balance.scouting.ownAccuracy.
+    { key: 'pot', label: 'POT', title: 'odhad potenciálu', numeric: true, render: (p) => rangeLabel(estimateOf(game, data, p)?.pot), sortValue: (p) => estimateMid(game, data, p, 'pot') },
+    { key: 'contract', label: 'Smlouva', title: 'smlouva do (30. 6.)', numeric: true, render: (p) => (p.contract ? p.contract.until.slice(0, 4) : '–'), sortValue: (p) => p.contract?.until ?? '' },
     { key: 'ts', label: 'TS', title: 'technické schopnosti', numeric: true, render: (p) => ts(p, b), sortValue: (p) => ts(p, b) },
     { key: 'fs', label: 'FS', title: 'fyzické schopnosti', numeric: true, render: (p) => fs(p, b), sortValue: (p) => fs(p, b) },
     { key: 'form', label: 'Forma', title: 'průměr posledních 5 známek', numeric: true, render: (p) => <RatingBadge value={formOf(p, data)} />, sortValue: (p) => formOf(p, data) ?? 0 },

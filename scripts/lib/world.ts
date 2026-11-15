@@ -6,7 +6,7 @@ import { exactAge } from '../../src/engine/game/development.ts';
 import { statements } from '../../src/engine/game/finance.ts';
 import { startNewSeason } from '../../src/engine/game/transition.ts';
 import { overall } from '../../src/engine/players/rating.ts';
-import type { Level } from '../../src/engine/types.ts';
+import { FREE_AGENT, type Level } from '../../src/engine/types.ts';
 import { createWorld } from '../../src/engine/world.ts';
 
 export interface SeasonMetrics {
@@ -47,7 +47,8 @@ export function seasonMetrics(state: ReturnType<typeof createGameState>, data: G
   }
   const clubs = Object.keys(state.membership);
   const sizes = clubs.map((id) => state.players.filter((p) => p.clubId === id && !p.academy).length);
-  const seniors = state.players.filter((p) => !p.academy);
+  // Free agents are not part of any squad.
+  const seniors = state.players.filter((p) => !p.academy && p.clubId !== FREE_AGENT);
   const mean = (xs: number[]) => xs.reduce((s, v) => s + v, 0) / Math.max(1, xs.length);
   const shares: Record<Level, number[]> = { 1: [], 2: [], 3: [] };
   let bailouts = 0;
@@ -70,7 +71,7 @@ export function seasonMetrics(state: ReturnType<typeof createGameState>, data: G
     minSquad: Math.min(...sizes),
     maxSquad: Math.max(...sizes),
     seniors: seniors.length,
-    academy: state.players.length - seniors.length,
+    academy: state.players.filter((p) => p.academy).length,
     avgAge: mean(seniors.map((p) => exactAge(p.birthDate, state.date))),
     pot85: state.players.filter((p) => p.pot >= 85).length,
     pot78: state.players.filter((p) => p.pot >= 78).length,

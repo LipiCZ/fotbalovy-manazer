@@ -200,6 +200,14 @@ Přesnost roste i s délkou sledování (jeden zápas vs. tři měsíce).
 
 Platy skautů jsou herní návrh. Hra záměrně zvýhodňuje širší síť, elitní skaut dává smysl hlavně k ověření drahých přestupů.
 
+**Doplněno ve fázi 6 (implementace, návrh):**
+
+- Vlastní hráče zná klub přesně (CEL) a jejich POT odhaduje ±3. Hráče 1. ligy zná každý klub ±10, 2. ligy ±14 (televize, statistiky); hráče 3. ligy, akademií a volné hráče jen přes skauty. Atributy cizího hráče hra ukáže, až když je odhad aspoň tak přesný jako u hráčů 1. ligy.
+- Odhad je rozsah, který vždy obsahuje skutečnou hodnotu (CEL ± polovina přesnosti, POT ± přesnost). Pozorování se skládají jako inverzní rozptyly: chyba = 1/√(Σ 1/přesnost²).
+- Úkoly: kraj (mládež do 19 let a tipy), soutěž (talenty do 21 let, nebo „příležitosti“ = končící smlouvy a hráči na prodej), konkrétní hráč (4 pozorování měsíčně). Skaut za měsíc pozoruje 20 hráčů své oblasti.
+- Tip: 6 % za měsíc a skauta v kraji; hráč 13–15 let s POT o 8–18 vyšším než běžný dorostenec, cena 100–400 tis. Kč, rodiče souhlasí v 60 % (peníze za jednání propadnou i při odmítnutí). Tip platí 3 měsíce.
+- Kandidáti na skauty se obnovují každý červenec; po konci kariéry se hráč klubu může nabídnout jako skaut (úroveň podle „výběru místa“ a „vize a rozhodování“).
+
 ## 7. Reputace
 
 Reputace hráče i klubu roste s výkony a ovlivňuje ceny, zájem ostatních klubů, sponzory a nábor.
@@ -278,6 +286,21 @@ Malý klub získává kvalitu hlavně přes mladíky velkých klubů se smluvní
 - AI kluby kupují hlavně na svou nejslabší pozici (podle síly nejlepší jedenáctky po pozicích, viz výběr sestavy z fáze 2).
 - Tržní hodnota závisí i na úrovni soutěže: do vzorce výše přibude násobič soutěže. Po přestupu do vyšší soutěže roste postupně během sezóny (návrh: lineárně za 6 měsíců), aby nešlo koupit levně ve 3. lize a hned draze přeprodat.
 - Hostování: součástí dohody je podíl platu, který platí každý z klubů (návrh: výchozí 50 : 50).
+
+**Doplněno ve fázi 6 (implementace, návrh – čísla v `balance.json → transfers`):**
+
+- Tržní hodnota = 8 mil. Kč × 1,13^(CEL − 64) × věk (17 let ×1,6 … 26 let ×1,0 … 35 let ×0,15) × potenciál (do 24 let +4 % za bod POT nad CEL) × forma (0,85–1,15) × smlouva (tabulka výše) × soutěž (1. liga 1,0, 2. liga 0,45, 3. liga 0,2). Reputace zatím chybí (fáze 7).
+- Okna: léto 1. 7.–1. 9., zima 1. 1.–15. 2. AI trh běží první den okna a pak jednou týdně.
+- Prodávající AI chce: hodnota × důležitost (základ ×1,35, rotace ×1,1, nadbytečný ×0,85) × (na listině 0,85–0,95, jinak 1,1–1,5) × (klub v mínusu ×0,9). Splátky (až 3 roční) počítá jako o 5 % za splátku méně, podíl z dalšího prodeje (max 30 %) jako bonus poloviny podílu. Nabídka pod 60 % požadavku je „nevážná“. Po 3 kolech klub jednání ukončí.
+- Osobní podmínky: plat podle kvality a nového klubu, do nižší soutěže +40 %, do vyšší −10 %, nejméně současný plat; podpisový bonus 1–3 platy (volný hráč 3–6). Hráč přijme od 95 % požadavku.
+- Prodloužení: plat podle kvality +10 %, při formě 7+ dalších +15 %, nespokojený s minutami (pod 30 %) +30 %; nejméně současný plat.
+- Konec smlouvy 30. 6.: AI klub si nechá 16 nejcennějších hráčů (CEL, část potenciálu, věk) mladších 33 let, ostatní odcházejí jako volní hráči. Hráči manažera bez prodloužení odcházejí; jen když by kádr klesl pod minimum soutěže, asistent prodlouží nejlepším o rok (manažer je varován celou sezónu na Domů).
+- AI kupuje jen pod svou cílovou silou (−1,5 bodu), na nejslabší místo v sestavě hráče aspoň o 3 body lepšího, do 35 % peněz a se zálohou 3 měsíčních platů, nejvýš 3 nákupy za okno. Neprodává, když by mu kádr klesl pod minimum. Hluboko pod cílem a bez dostupného hráče podepíše „volného hráče ze zahraničí“ (náhrada trhů mimo hru). Nabídky na hráče manažera: hráč na listině 25 % týdně, ostatní 2 % týdně; AI klub přeplatí nejvýš 105–130 % hodnoty.
+- AI-AI hostování zatím není (mladé drží B-týmy); AI kluby dávají mladé na listinu k hostování, manažer si je může půjčit. Opce na hostování mladých = tržní hodnota.
+- Volní hráči: skupina ~160 hráčů; když klesne pod 60 %, doplní se z nesimulovaných soutěží (síla průměr základní sestavy 2./3. ligy − 9). Po 18 měsících bez klubu, nebo od 32 let po 6 měsících, končí kariéru.
+- Účetnictví (sekce 13): odstupné + provize agenta (5 %) + podpisový bonus se aktivují a odepisují rovnoměrně po dobu smlouvy; při prodeji se zbytek odepíše. Prodej je výnos hned, peníze chodí ve splátkách (pohledávka); nákup na splátky je závazek. Propuštění stojí 50 % zbývajících platů.
+- Konec kariéry (fáze 4b) od fáze 6: platná smlouva i na příští sezónu ×0,7; místo konce kariéry jde 35 % hráčů s CEL aspoň o 3 nad průměrem 3. ligy „dohrát do nižší soutěže“ (volný hráč jen pro 3. ligu).
+- Zatím není: zpětný odkup, právo dorovnat, povinný odkup, bonusy, poptávky, finanční ředitel, agenti nabízející hráče, morálka po odmítnutí nabídky (morálka přijde ve fázi 7).
 
 ## 9. Stadion a město
 

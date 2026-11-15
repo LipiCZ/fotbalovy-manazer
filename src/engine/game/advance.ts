@@ -42,6 +42,8 @@ import {
   monthlyFinance,
 } from './finance.ts';
 import { initialUserTeam, prepareUserSheet, userStrength } from './userTeam.ts';
+import { aiMarketTick, amortizeRegistrations, emptyMarket, expireOffers, freeAgentTick, marketDays, payDueInstallments } from './market.ts';
+import { emptyScouting, refreshCandidates, scoutingTick } from './scouting.ts';
 
 const MAX_NEWS = 80;
 
@@ -172,8 +174,12 @@ export function createGameState(world: World, opts: NewGameOptions): GameState {
     finances: {},
     transactions: [],
     board: null,
+    market: emptyMarket(),
+    scouting: emptyScouting(),
   };
   initFinances(state, data, seasonRngOf(state).fork('contracts'));
+  freeAgentTick(state, data, start, seasonRngOf(state).fork('free-agents'), data.balance.transfers.freeAgents.poolTarget);
+  if (opts.userClubId !== null) refreshCandidates(state, data, seasonRngOf(state).fork('scouts'));
   state.competitions = buildCompetitions(state, data);
   startCup(state, data);
   if (opts.userClubId !== null) {
@@ -441,6 +447,11 @@ function monthStarts(from: string, to: string): string[] {
 function monthTick(state: GameState, data: GameData, date: string, news: NewsItem[]): void {
   const rng = seasonRngOf(state).fork(`month:${date}`);
   monthlyFinance(state, data, date);
+  amortizeRegistrations(state, data, date);
+  payDueInstallments(state, date);
+  scoutingTick(state, data, date, rng.fork('scouting'), news);
+  freeAgentTick(state, data, date, rng.fork('free-agents'));
+  expireOffers(state, date);
   news.push(...developmentTick(state, data, { date, leagueCelOf: leagueCelLookup(state, data), rng: rng.fork('dev') }));
   // Attributes changed: cached line-ups must be chosen again (a loaded game has no cache either).
   invalidateRuntime(state);
@@ -471,10 +482,24 @@ export function passTime(state: GameState, data: GameData, to: string, news: New
     news.push({ date: licence, kind: 'info', text: `Licence: klub má závazky po splatnosti, v příští sezóně přijde o ${userFinance.pendingDeduction} body.` });
   }
   let cursor = state.date;
-  for (const m of monthStarts(cursor, to)) {
-    passSegment(state, data, cursor, m, news);
-    monthTick(state, data, m, news);
-    cursor = m;
+  // Month starts first; on a day that is both, the market follows the monthly tick.
+  const events = [
+    ...monthStarts(cursor, to).map((d) => ({ d, market: false })),
+    ...marketDays(cursor, to, data).map((d) => ({ d, market: true })),
+  ].sort((a, b) => a.d.localeCompare(b.d) || Number(a.market) - Number(b.market));
+  for (const e of events) {
+    passSegment(state, data, cursor, e.d, news);
+    state.date = e.d;
+    // The window opening on 1 July is handled by the season transition (new competitions first).
+    if (e.market && state.finished && e.d.endsWith('-07-01')) {
+      cursor = e.d;
+      continue;
+    }
+    if (e.market) {
+      aiMarketTick(state, data, e.d, seasonRngOf(state).fork(`market:${e.d}`), news);
+      invalidateRuntime(state);
+    } else monthTick(state, data, e.d, news);
+    cursor = e.d;
   }
   passSegment(state, data, cursor, to, news);
   state.date = to;

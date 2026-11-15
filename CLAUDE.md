@@ -56,6 +56,8 @@ Směr závislostí: `ui → state → engine → data`. Engine nikdy neimportuje
 - Akademie: hráči s `academy: true` (nehrají seniorské zápasy). Atributy jsou po vývoji desetinná čísla (UI zaokrouhluje).
 - Mezipaměť výběru sestav (`runtimeOf(state).selection`) se musí zneplatnit po každé změně atributů nebo kádrů (`invalidateRuntime`), jinak se rozejde uložená a neuložená hra.
 - Peníze: každý pohyb jde přes `book()` (finance.ts) – sezónní součty po kategoriích; u klubu hráče i seznam transakcí. Částky v Kč.
+- Volní hráči mají `clubId = FREE_AGENT` ('volny-hrac'), bez smlouvy. Hostovaný hráč má `clubId` hostitele a `loan.fromClubId` mateřského klubu (`ownerOf`).
+- Trh: `game/market.ts` (hodnota, nabídky, smlouvy, volní hráči, AI trh v oknech – tržní dny v `passTime`), skauting `game/scouting.ts`. Hráč manažera vidí CEL/POT cizích hráčů jen jako odhad (`estimateOf`).
 - Kluby mají `id` jako slug (`slavia-praha`, `slavia-praha-b`). B/C týmy mají `parentClubId`.
 - Pozice: kódy `GK CB LB RB DM CM AM LM RM LW RW ST`, v UI česky (BR SO LO PO DZ SZ OZ LZ PZ LK PK ÚT).
 
@@ -73,7 +75,8 @@ Rozhodnutí bez explicitního zadání a otevřené otázky se zapisují do `doc
 - Kalendář kol (`competitions.json → calendar`: soboty, zimní pauza) je odhad, neověřeno proti FAČR.
 - Nadstavba jednokolově (zadání uživatele); play-off 7.–10., baráž na dva zápasy, počty postupujících a rozdělení do skupin 3. ligy podle krajů jsou návrh (`pyramid.json`).
 - Pyramida je od 3. ligy dolů uzavřená (zadání uživatele): z 3. ligy se nesestupuje, B-tým, který by musel pod 3. ligu, vypadne ze soutěží.
-- Dočasně do fáze 6 (přestupy): klub hluboko pod svou cílovou silou podepisuje „volné hráče“, B-týmy AI drží hráče do 22 let. Bez přestupů 2. liga za 10+ sezón pomalu sílí (`calibrate:world` upozorní).
+- Klub hluboko pod svou cílovou silou bez dostupného hráče na trhu podepíše „volného hráče ze zahraničí“ (náhrada trhů mimo hru). B-týmy AI drží hráče do 22 let. 2. a 3. liga za 10 sezón zesílí o ~3 body (`calibrate:world` upozorní, prvních 5 sezón v mezích).
+- Čísla trhu a skautingu (`balance.json → transfers`, `scouting`) jsou návrh; termíny oken podle designu, neověřeno proti FAČR.
 - Nábor do akademie: POT 70+ má ~6–7 % dorostenců (design: „zhruba každý desátý“) – víc talentu by bez přestupů nafouklo nižší soutěže.
 
 ## Příkazy
@@ -104,4 +107,5 @@ Po změně čísel v `balance.json → match` vždy pusť `npm run calibrate` (s
 | 4 | vývoj hráčů, akademie, B-týmy, nadstavba, baráž, MOL Cup, přechod sezóny | hotovo |
 | 4b | doplňky z CSM: konce kariér podle pozic, typy zranění a návrat, únava podle věku, varování na 3 žluté, kalibrace penalt | hotovo |
 | 5 | ekonomika (finance všech klubů, smlouvy, vstupné, výkazy, úvěr, licence), cíle a hodnocení vedení | hotovo |
-| 5–8 | viz `docs/design.md`, sekce 16 | – |
+| 6 | přestupy a hostování, smlouvy a prodlužování, volní hráči, živý trh AI, skauting a odhady CEL/POT | hotovo |
+| 7–8 | viz `docs/design.md`, sekce 16 | – |

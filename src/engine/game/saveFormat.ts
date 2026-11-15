@@ -4,11 +4,13 @@
 
 import type { GameData } from '../data.ts';
 import { overall } from '../players/rating.ts';
-import { ATTRIBUTES, type Player } from '../types.ts';
+import { ATTRIBUTES, FREE_AGENT, type Player } from '../types.ts';
 import { SAVE_VERSION, type GameState, type UserMatch } from './state.ts';
 import { initFinances } from './finance.ts';
 import { startBoardSeason } from './board.ts';
 import { Rng } from '../rng.ts';
+import { emptyMarket, freeAgentTick } from './market.ts';
+import { emptyScouting, refreshCandidates } from './scouting.ts';
 
 export const SAVE_FORMAT = 'fotbalovy-manazer-save';
 
@@ -71,7 +73,7 @@ export function parseSave(input: string | unknown, data: GameData): { save: Save
     }
   }
   if (!isObj(raw) || raw.format !== SAVE_FORMAT) throw new SaveError('Tohle není uložená hra Fotbalového manažera CZ.');
-  if (raw.version !== SAVE_VERSION && raw.version !== 1 && raw.version !== 2)
+  if (raw.version !== SAVE_VERSION && raw.version !== 1 && raw.version !== 2 && raw.version !== 3)
     throw new SaveError(`Uložená hra má verzi ${String(raw.version)}, tahle verze hry umí načíst verze 1–${SAVE_VERSION}.`);
   if (!isObj(raw.game)) throw new SaveError('Uložená hra je poškozená: chybí stav hry.');
   const warnings: string[] = [];
@@ -82,13 +84,19 @@ export function parseSave(input: string | unknown, data: GameData): { save: Save
   }
   if (raw.version === 2) {
     raw.game = migrateV2(raw.game as unknown as GameState, data);
-    raw.version = SAVE_VERSION;
+    raw.version = 3;
     warnings.push('Uložená hra byla převedena na verzi s ekonomikou: kluby dostaly výchozí finance a hráči smlouvy.');
+  }
+  if (raw.version === 3) {
+    raw.game = migrateV3(raw.game as unknown as GameState, data);
+    raw.version = SAVE_VERSION;
+    warnings.push('Uložená hra byla převedena na verzi s přestupy a skautingem: trh začíná prázdný, POT ostatních hráčů se ukazuje jako odhad.');
   }
   const game = raw.game as Record<string, unknown>;
 
   const problems: string[] = [];
   const clubIds = new Set(data.clubs.map((c) => c.id));
+  const playerClubs = new Set([...clubIds, FREE_AGENT]);
   if (typeof game.seed !== 'string') problems.push('seed');
   if (typeof game.seasonYear !== 'number') problems.push('sezóna');
   if (typeof game.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(game.date)) problems.push('datum');
@@ -97,12 +105,13 @@ export function parseSave(input: string | unknown, data: GameData): { save: Save
     problems.push('příslušnost klubů k soutěžím');
   if (!Array.isArray(game.stages) || !Array.isArray(game.history)) problems.push('nadstavba nebo historie');
   if (!isObj(game.finances) || !Array.isArray(game.transactions)) problems.push('finance');
+  if (!isObj(game.market) || !Array.isArray((game.market as Record<string, unknown>).offers) || !isObj(game.scouting)) problems.push('trh nebo skauting');
 
   const playerIds = new Set<string>();
   if (!Array.isArray(game.players) || game.players.length === 0) problems.push('hráči');
   else
     for (const p of game.players as unknown[]) {
-      if (!isObj(p) || typeof p.id !== 'string' || !clubIds.has(p.clubId as string) || !isObj(p.attributes) || !isObj(p.state)) {
+      if (!isObj(p) || typeof p.id !== 'string' || !playerClubs.has(p.clubId as string) || !isObj(p.attributes) || !isObj(p.state)) {
         problems.push('hráč s neplatnými údaji');
         break;
       }
@@ -177,8 +186,21 @@ function migrateV1(game: Record<string, unknown>, data: GameData): GameState {
 
 /** Version 2 (phase 4) -> version 3: finances, contracts, board goals. */
 function migrateV2(game: GameState, data: GameData): GameState {
-  const g = { ...game, version: SAVE_VERSION, finances: {}, transactions: [], board: null } as GameState;
+  const g = { ...game, version: 3, finances: {}, transactions: [], board: null } as unknown as GameState;
   initFinances(g, data, new Rng(`${g.seed}/migrate-v3`));
   if (g.userClubId) startBoardSeason(g, data);
+  return g;
+}
+
+/** Version 3 (phase 5) -> version 4: transfer market, scouting, free agents. */
+function migrateV3(game: GameState, data: GameData): GameState {
+  const g = { ...game, version: SAVE_VERSION, market: emptyMarket(), scouting: emptyScouting() } as GameState;
+  for (const f of Object.values(g.finances)) {
+    f.payables ??= 0;
+    f.receivables ??= 0;
+  }
+  const rng = new Rng(`${g.seed}/migrate-v4`);
+  freeAgentTick(g, data, g.date, rng.fork('free-agents'), data.balance.transfers.freeAgents.poolTarget);
+  if (g.userClubId) refreshCandidates(g, data, rng.fork('scouts'));
   return g;
 }

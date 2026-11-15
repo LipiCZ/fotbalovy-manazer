@@ -11,6 +11,8 @@ const NAV: { label: string; screen: Screen }[] = [
   { label: 'Soupiska', screen: { name: 'squad' } },
   { label: 'Taktika', screen: { name: 'tactics' } },
   { label: 'Soutěže', screen: { name: 'competitions' } },
+  { label: 'Přestupy', screen: { name: 'transfers' } },
+  { label: 'Skauting', screen: { name: 'scouting' } },
   { label: 'Finance', screen: { name: 'finance' } },
 ];
 

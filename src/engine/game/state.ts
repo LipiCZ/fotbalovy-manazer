@@ -6,7 +6,7 @@ import type { Tactics } from '../lineup.ts';
 import type { MatchReport, TeamMatchStats } from '../match/types.ts';
 import type { CompetitionId, Fixture, MatchResult, Player, Position } from '../types.ts';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 /** Compact per-match record kept for every match. */
 export interface MatchSummary extends MatchResult {
@@ -115,7 +115,7 @@ export interface PlayerSeasonStats {
   motm: number;
 }
 
-export type NewsKind = 'injury' | 'suspension' | 'lineup' | 'recovered' | 'academy' | 'development' | 'season' | 'info';
+export type NewsKind = 'injury' | 'suspension' | 'lineup' | 'recovered' | 'academy' | 'development' | 'season' | 'info' | 'transfer' | 'contract' | 'scouting';
 
 export interface NewsItem {
   date: string;
@@ -174,6 +174,89 @@ export interface BoardState {
   grades: Grade[];
 }
 
+export type OfferStatus = 'open' | 'countered' | 'agreed' | 'pending' | 'done' | 'rejected' | 'withdrawn' | 'expired';
+
+/** Transfer or loan offer (design, section 8). */
+export interface Offer {
+  id: string;
+  kind: 'transfer' | 'loan';
+  playerId: string;
+  sellerId: string;
+  buyerId: string;
+  fee: number;
+  /** Fee paid in 1–3 yearly installments. */
+  installments: number;
+  sellOnShare: number;
+  loan?: { wageShare: number; until: string; optionFee?: number };
+  status: OfferStatus;
+  rounds: number;
+  /** Seller's counter (fee). */
+  counterFee?: number;
+  initiatedBy: 'user' | 'ai';
+  createdAt: string;
+  expiresAt: string;
+  /** Personal terms agreed with the player. */
+  terms?: { wage: number; years: number; signingBonus: number };
+  /** AI buyer: the most it will pay (hidden from the manager). */
+  limit?: number;
+  note?: string;
+}
+
+/** Money due later (transfer installments). */
+export interface Installment {
+  date: string;
+  fromClubId: string;
+  toClubId: string;
+  amount: number;
+  note: string;
+}
+
+export interface MarketState {
+  offers: Offer[];
+  installments: Installment[];
+  nextId: number;
+  /** Purchases per club in the current window. */
+  windowBuys: Record<string, number>;
+}
+
+export type ScoutLevel = 'začátečník' | 'zkušený' | 'elitní';
+
+export interface Scout {
+  id: string;
+  name: string;
+  level: ScoutLevel;
+  salary: number;
+  /** Region (youth) or competition (adults) or a player. */
+  task: { kind: 'region'; regionId: string } | { kind: 'competition'; competitionId: CompetitionId; focus: 'talents' | 'bargains' } | { kind: 'player'; playerId: string } | null;
+}
+
+/** What the manager's club knows about a player (design, section 6). */
+export interface Knowledge {
+  celGuess: number;
+  potGuess: number;
+  /** Current accuracy ±. */
+  accuracy: number;
+  observations: number;
+  updated: string;
+}
+
+export interface ScoutTip {
+  id: string;
+  date: string;
+  regionId: string;
+  scoutId: string;
+  player: Player;
+  cost: number;
+}
+
+export interface ScoutingState {
+  scouts: Scout[];
+  candidates: Scout[];
+  knowledge: Record<string, Knowledge>;
+  tips: ScoutTip[];
+  nextId: number;
+}
+
 export interface GameState {
   version: typeof SAVE_VERSION;
   seed: string;
@@ -200,6 +283,8 @@ export interface GameState {
   /** Transactions of the manager's club this season. */
   transactions: Transaction[];
   board: BoardState | null;
+  market: MarketState;
+  scouting: ScoutingState;
 }
 
 export function emptyStats(): PlayerSeasonStats {
