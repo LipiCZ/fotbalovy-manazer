@@ -1,11 +1,12 @@
 // Serializable game state (saved as-is). No Maps, no class instances.
 
 import type { TrainingIntensity } from '../data.ts';
+import type { Budget, ClubFinance, Transaction, TxType } from './finance.ts';
 import type { Tactics } from '../lineup.ts';
 import type { MatchReport, TeamMatchStats } from '../match/types.ts';
 import type { CompetitionId, Fixture, MatchResult, Player, Position } from '../types.ts';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 /** Compact per-match record kept for every match. */
 export interface MatchSummary extends MatchResult {
@@ -19,6 +20,8 @@ export interface MatchSummary extends MatchResult {
   extraTime?: boolean;
   /** Penalty shoot-out result [home, away]. */
   penalties?: [number, number];
+  attendance?: number;
+  capacity?: number;
 }
 
 /** Regular season of a league. */
@@ -139,6 +142,36 @@ export interface SeasonRecord {
   userClubId: string | null;
   userCompetitionId: CompetitionId | null;
   userPosition: number | null;
+  /** Board evaluation of the manager's season (design, sections 10 and 14). */
+  evaluation?: SeasonEvaluation;
+  /** The manager's club: season totals by category and cash at the end. */
+  finance?: { season: Partial<Record<TxType, number>>; cashEnd: number };
+}
+
+export type Grade = 'vynikající' | 'úspěšná' | 'přijatelná' | 'neúspěšná' | 'katastrofa';
+
+export interface BoardGoals {
+  /** Finish at this position or better. */
+  leaguePosition: number;
+  leagueLabel: string;
+  /** Reach this cup round (index into cup.rounds) or further. */
+  cupRound: number;
+  cupLabel: string;
+}
+
+export interface SeasonEvaluation {
+  league: Grade;
+  cup: Grade;
+  overall: Grade;
+  leaguePosition: number;
+  cupReached: number;
+}
+
+export interface BoardState {
+  goals: BoardGoals;
+  budget: Budget;
+  /** Overall grades of past seasons (newest last) – for the sacking rule in phase 8. */
+  grades: Grade[];
 }
 
 export interface GameState {
@@ -163,6 +196,10 @@ export interface GameState {
   history: SeasonRecord[];
   /** The whole season including post-season, barrage and cup is over. */
   finished: boolean;
+  finances: Record<string, ClubFinance>;
+  /** Transactions of the manager's club this season. */
+  transactions: Transaction[];
+  board: BoardState | null;
 }
 
 export function emptyStats(): PlayerSeasonStats {

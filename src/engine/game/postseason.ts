@@ -24,7 +24,14 @@ export function regularTable(state: GameState, competitionId: CompetitionId, dat
   const progress = state.competitions.find((c) => c.id === competitionId);
   const competition = data.competitions.find((c) => c.id === competitionId);
   if (!progress || !competition) return [];
-  return computeTable(progress.clubIds, progress.results, competition, `${seasonRngOf(state).seed}/${competitionId}/lot`);
+  return computeTable(progress.clubIds, progress.results, competition, `${seasonRngOf(state).seed}/${competitionId}/lot`, deductionsOf(state));
+}
+
+/** Points deducted this season (licence). */
+export function deductionsOf(state: GameState): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [id, f] of Object.entries(state.finances ?? {})) if (f.pointDeduction > 0) out[id] = f.pointDeduction;
+  return out;
 }
 
 /** Table of a post-season group: points from the regular season carry over. */
@@ -35,7 +42,7 @@ export function groupTable(state: GameState, stageId: 'title-group' | 'relegatio
   const competition = data.competitions.find((c) => c.id === firstId);
   if (!progress || !stage || !competition) return [];
   const groupResults = state.stages.filter((s) => s.id === 'title-group' || s.id === 'relegation-group').flatMap((s) => s.results);
-  const all = computeTable(progress.clubIds, [...progress.results, ...groupResults], competition, `${seasonRngOf(state).seed}/${firstId}/lot`);
+  const all = computeTable(progress.clubIds, [...progress.results, ...groupResults], competition, `${seasonRngOf(state).seed}/${firstId}/lot`, deductionsOf(state));
   return all.filter((r) => stage.clubIds.includes(r.clubId));
 }
 

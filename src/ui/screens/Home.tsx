@@ -3,7 +3,8 @@ import { competitionOfClub, nextUserMatch, squadOf } from '../../engine/game/adv
 import { groupTable, regularTable, stageOf } from '../../engine/game/postseason.ts';
 import { getAppStore, useGame } from '../../state/store.ts';
 import { ClubLabel, clubOf, FormBadges, playerOf, PlayerLink } from '../components.tsx';
-import { formatDate, formatDateLong } from '../format.ts';
+import { formatDate, formatDateLong, money } from '../format.ts';
+import { wageBill } from '../../engine/game/finance.ts';
 
 const NEWS_ICON = { injury: '✚', suspension: '🟥', lineup: '🔁', recovered: '✅', academy: '🎓', development: '📈', season: '📅', info: 'ℹ️' } as const;
 
@@ -145,6 +146,28 @@ export function HomeScreen() {
           </tbody>
         </table>
       </section>
+
+      {game.board && (
+        <section className="card">
+          <h3>
+            Cíle vedení
+            <button className="link muted" onClick={() => store.navigate({ name: 'finance' })}>
+              finance →
+            </button>
+          </h3>
+          <ul style={{ paddingLeft: 18, margin: 0 }}>
+            <li>
+              Liga: <strong>{game.board.goals.leagueLabel}</strong>
+              {pos >= 0 && !group && <span className="muted"> (teď {pos + 1}. místo)</span>}
+            </li>
+            {game.cup && <li>{game.board.goals.cupLabel}</li>}
+            <li>
+              Platy: {money(wageBill(game, data, userClubId))} ročně z rozpočtu {money(game.board.budget.wageCap)}
+            </li>
+          </ul>
+          <p className="help">Na konci sezóny vedení hodnotí každý cíl stupněm vynikající – úspěšná – přijatelná – neúspěšná – katastrofa. Pohárový úspěch pomůže hodně, neúspěch tolik neuškodí.</p>
+        </section>
+      )}
 
       <section className="card">
         <h3>Novinky</h3>

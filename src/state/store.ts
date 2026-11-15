@@ -7,6 +7,7 @@ import type { GameData } from '../engine/data.ts';
 import { advanceDay, advanceToNextUserMatch, invalidateRuntime, newGame, runtimeOf, squadOf } from '../engine/game/advance.ts';
 import { exactAge } from '../engine/game/development.ts';
 import { startNewSeason } from '../engine/game/transition.ts';
+import { repayLoan, setTicketPrice, takeLoan } from '../engine/game/finance.ts';
 import { moveUserPlayer, type SquadTarget } from '../engine/game/userTeam.ts';
 import { makeSave, parseSave, serializeSave } from '../engine/game/saveFormat.ts';
 import type { GameState, TrainingSetting, UserTeamState } from '../engine/game/state.ts';
@@ -22,7 +23,8 @@ export type Screen =
   | { name: 'tactics' }
   | { name: 'match'; reportIndex: number }
   | { name: 'competitions'; competitionId?: CompetitionId }
-  | { name: 'seasonEnd' };
+  | { name: 'seasonEnd' }
+  | { name: 'finance' };
 
 export interface Message {
   kind: 'info' | 'warn' | 'error';
@@ -51,6 +53,9 @@ export interface AppState {
   movePlayer(playerId: string, target: SquadTarget): void;
   releaseFromAcademy(playerId: string): void;
   setTraining(training: TrainingSetting): void;
+  setTicketPrice(price: number): void;
+  takeLoan(amount: number): void;
+  repayLoan(amount: number): void;
   saveTo(slot: Slot): Promise<void>;
   loadFrom(slot: Slot): Promise<void>;
   refreshSaves(): Promise<void>;
@@ -183,6 +188,27 @@ export function createAppStore(deps: StoreDeps): StoreApi<AppState> {
         if (!p?.academy || p.clubId !== game.userClubId) return;
         game.players = game.players.filter((x) => x.id !== playerId);
         invalidateRuntime(game);
+        bump();
+      },
+      setTicketPrice(price) {
+        const { game, data } = get();
+        if (!game) return;
+        const error = setTicketPrice(game, data, price);
+        if (error) set({ message: { kind: 'warn', text: error } });
+        bump();
+      },
+      takeLoan(amount) {
+        const { game, data } = get();
+        if (!game) return;
+        const error = takeLoan(game, data, amount);
+        set({ message: error ? { kind: 'warn', text: error } : { kind: 'info', text: 'Úvěr přijat.' } });
+        bump();
+      },
+      repayLoan(amount) {
+        const { game } = get();
+        if (!game) return;
+        const error = repayLoan(game, amount);
+        set({ message: error ? { kind: 'warn', text: error } : { kind: 'info', text: 'Splátka provedena.' } });
         bump();
       },
       setTraining(training) {

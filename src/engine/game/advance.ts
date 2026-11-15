@@ -30,6 +30,17 @@ import {
   type StageId,
 } from './state.ts';
 import { recordStats } from './stats.ts';
+import { startBoardSeason } from './board.ts';
+import {
+  book,
+  crossesDate,
+  ensureContracts,
+  initFinances,
+  licenceDate,
+  matchBonus,
+  matchdayFinance,
+  monthlyFinance,
+} from './finance.ts';
 import { initialUserTeam, prepareUserSheet, userStrength } from './userTeam.ts';
 
 const MAX_NEWS = 80;
@@ -107,6 +118,17 @@ function cupSeeds(state: GameState, data: GameData): string[] {
 
 export function startCup(state: GameState, data: GameData): void {
   state.cup = createCup(state, data, cupSeeds(state, data), seasonRngOf(state).fork('cup'));
+  payCupRound(state, data, 0);
+}
+
+/** Prize money for reaching a cup round (design, section 2: a big chance for a small club). */
+function payCupRound(state: GameState, data: GameData, roundIndex: number): void {
+  const cup = state.cup;
+  const round = cup?.rounds[roundIndex];
+  const prize = data.balance.economy.prizeMoney.cupPerRoundReached[roundIndex] ?? 0;
+  if (!round || prize <= 0) return;
+  for (const t of round.ties)
+    for (const id of [t.homeId, t.awayId]) if (id) book(state, id, 'prize', prize, round.date, `${data.pyramid.cup.name}: postup do kola ${round.name}`);
 }
 
 /** Game state for an existing world (players are copied, the world is not changed). */
@@ -147,10 +169,17 @@ export function createGameState(world: World, opts: NewGameOptions): GameState {
     news: [],
     history: [],
     finished: false,
+    finances: {},
+    transactions: [],
+    board: null,
   };
+  initFinances(state, data, seasonRngOf(state).fork('contracts'));
   state.competitions = buildCompetitions(state, data);
   startCup(state, data);
-  if (opts.userClubId !== null) state.user = initialUserTeam(squadOf(state, opts.userClubId), data);
+  if (opts.userClubId !== null) {
+    state.user = initialUserTeam(squadOf(state, opts.userClubId), data);
+    startBoardSeason(state, data);
+  }
   return state;
 }
 
@@ -411,6 +440,7 @@ function monthStarts(from: string, to: string): string[] {
 /** Monthly development tick (and the January academy intake + squad management). */
 function monthTick(state: GameState, data: GameData, date: string, news: NewsItem[]): void {
   const rng = seasonRngOf(state).fork(`month:${date}`);
+  monthlyFinance(state, data, date);
   news.push(...developmentTick(state, data, { date, leagueCelOf: leagueCelLookup(state, data), rng: rng.fork('dev') }));
   // Attributes changed: cached line-ups must be chosen again (a loaded game has no cache either).
   invalidateRuntime(state);
@@ -422,10 +452,24 @@ function monthTick(state: GameState, data: GameData, date: string, news: NewsIte
     news.push(...manageSquads(state, data, { date, leagueCelOf: leagueCelLookup(state, data), rng: rng.fork('squads') }));
     invalidateRuntime(state);
   }
+  refreshContracts(state, data, rng.fork('contracts'));
+}
+
+/** New players get contracts; academy graduates get a senior wage (negotiations come in phase 6). */
+export function refreshContracts(state: GameState, data: GameData, rng: ReturnType<typeof seasonRngOf>): void {
+  const academyWages = new Set(Object.values(data.balance.economy.wages.academyMonthly));
+  for (const p of state.players) if (!p.academy && p.contract && academyWages.has(p.contract.wage)) delete p.contract;
+  ensureContracts(state, data, rng);
 }
 
 /** Moves the clock to `to`, with recovery, healing and monthly development on the way. */
 export function passTime(state: GameState, data: GameData, to: string, news: NewsItem[]): void {
+  const licence = licenceDate(state.seasonYear, data.balance);
+  const userFinance = state.userClubId ? state.finances[state.userClubId] : undefined;
+  if (userFinance && crossesDate(state.date, to, licence) && userFinance.cash < 0) {
+    userFinance.pendingDeduction = data.balance.economy.license.pointDeduction;
+    news.push({ date: licence, kind: 'info', text: `Licence: klub má závazky po splatnosti, v příští sezóně přijde o ${userFinance.pendingDeduction} body.` });
+  }
   let cursor = state.date;
   for (const m of monthStarts(cursor, to)) {
     passSegment(state, data, cursor, m, news);
@@ -532,9 +576,17 @@ function playPlanned(state: GameState, data: GameData, m: PlannedMatch, news: Ne
   });
   for (const p of suspended) p.state.suspensionMatches--;
   const before = new Map([...homeSquad, ...awaySquad].map((p) => [p.id, p.state.suspensionMatches]));
+  const leagueProgress = m.competitionId ? state.competitions.find((c) => c.id === m.competitionId) : undefined;
+  const tablePosition = leagueProgress ? regularTable(state, leagueProgress.id, data).findIndex((r) => r.clubId === m.homeId) + 1 : null;
+  const gate = m.neutral
+    ? { attendance: 0, capacity: 0 }
+    : matchdayFinance(state, data, m.homeId, m.date, { tablePosition, teams: leagueProgress?.clubIds.length ?? 16, rng: rng.fork(`gate:${m.rngKey}`) });
+  const outcome = (own: number, opp: number) => (own > opp ? 'W' : own < opp ? 'L' : 'D') as 'W' | 'D' | 'L';
+  matchBonus(state, data, m.homeId, outcome(report.homeGoals, report.awayGoals), m.date);
+  matchBonus(state, data, m.awayId, outcome(report.awayGoals, report.homeGoals), m.date);
   applyMatchToPlayers(report, rt.byId, balance, rng.fork(`discipline:${m.rngKey}`));
   recordStats(state.playerStats, report);
-  m.store(summarize(report, m.homeId, m.awayId, m.fixtureRound, m.date));
+  m.store({ ...summarize(report, m.homeId, m.awayId, m.fixtureRound, m.date), ...(gate.capacity > 0 ? { attendance: gate.attendance, capacity: gate.capacity } : {}) });
   opts.onReport?.(report, m.competitionId, m.round, m.date);
   if ((isUserHome || isUserAway) && user) {
     user.matches.push({ date: m.date, label: m.label, report });
@@ -565,7 +617,12 @@ export function advanceDay(state: GameState, data: GameData, opts: AdvanceOption
   for (const progress of state.competitions) if (progress.roundDates[progress.playedRounds] === date) progress.playedRounds++;
 
   progressPostseason(state, data);
+  const cupRoundBefore = state.cup?.current ?? 0;
+  const cupWinnerBefore = state.cup?.winnerId;
   progressCup(state, data, seasonRngOf(state).fork('cup'));
+  if (state.cup && state.cup.current > cupRoundBefore && !state.cup.winnerId) payCupRound(state, data, state.cup.current);
+  if (state.cup?.winnerId && !cupWinnerBefore)
+    book(state, state.cup.winnerId, 'prize', data.balance.economy.prizeMoney.cupWinner, date, `${data.pyramid.cup.name}: vítěz`);
 
   result.news = news;
   pushNews(state, news);

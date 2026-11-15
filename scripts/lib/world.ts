@@ -3,6 +3,7 @@
 import { loadDefaultData, type GameData } from '../../src/engine/data.ts';
 import { createGameState, finalStandings, playToSeasonEnd } from '../../src/engine/game/advance.ts';
 import { exactAge } from '../../src/engine/game/development.ts';
+import { statements } from '../../src/engine/game/finance.ts';
 import { startNewSeason } from '../../src/engine/game/transition.ts';
 import { overall } from '../../src/engine/players/rating.ts';
 import type { Level } from '../../src/engine/types.ts';
@@ -20,6 +21,10 @@ export interface SeasonMetrics {
   goals: Record<Level, number>;
   homeWins3: number;
   groupSizes: number[];
+  /** Average P&L result / revenue of A-teams by level. */
+  resultShare: Record<Level, number>;
+  /** Share of A-teams whose owner had to put money in. */
+  ownerBailouts: number;
 }
 
 export function seasonMetrics(state: ReturnType<typeof createGameState>, data: GameData): SeasonMetrics {
@@ -44,7 +49,23 @@ export function seasonMetrics(state: ReturnType<typeof createGameState>, data: G
   const sizes = clubs.map((id) => state.players.filter((p) => p.clubId === id && !p.academy).length);
   const seniors = state.players.filter((p) => !p.academy);
   const mean = (xs: number[]) => xs.reduce((s, v) => s + v, 0) / Math.max(1, xs.length);
+  const shares: Record<Level, number[]> = { 1: [], 2: [], 3: [] };
+  let bailouts = 0;
+  let aTeams = 0;
+  for (const club of data.clubs) {
+    const f = state.finances[club.id];
+    const comp = state.membership[club.id];
+    if (club.parentClubId || !f || !comp) continue;
+    const level = data.competitions.find((c) => c.id === comp)!.level;
+    const st = statements(f);
+    const revenue = st.revenues.reduce((s, [, v]) => s + v, 0);
+    if (revenue > 0) shares[level].push(st.result / revenue);
+    aTeams++;
+    if ((f.season.ownerDeposit ?? 0) > 0) bailouts++;
+  }
   return {
+    resultShare: { 1: mean(shares[1]), 2: mean(shares[2]), 3: mean(shares[3]) },
+    ownerBailouts: bailouts / Math.max(1, aTeams),
     top11: { 1: mean(top11[1]), 2: mean(top11[2]), 3: mean(top11[3]) },
     minSquad: Math.min(...sizes),
     maxSquad: Math.max(...sizes),

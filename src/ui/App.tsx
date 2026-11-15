@@ -3,6 +3,7 @@ import { getAppStore, useApp, type Screen } from '../state/store.ts';
 import { Layout } from './Layout.tsx';
 import { SaveDialog } from './SaveDialog.tsx';
 import { CompetitionsScreen } from './screens/Competitions.tsx';
+import { FinanceScreen } from './screens/Finance.tsx';
 import { HomeScreen } from './screens/Home.tsx';
 import { MatchScreen } from './screens/Match.tsx';
 import { NewGameScreen } from './screens/NewGame.tsx';
@@ -28,6 +29,8 @@ function GameScreen({ screen }: { screen: Screen }) {
       return <CompetitionsScreen key={screen.competitionId ?? ''} {...(screen.competitionId ? { competitionId: screen.competitionId } : {})} />;
     case 'seasonEnd':
       return <SeasonEndScreen />;
+    case 'finance':
+      return <FinanceScreen />;
     default:
       return <HomeScreen />;
   }

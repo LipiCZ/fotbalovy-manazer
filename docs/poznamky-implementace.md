@@ -12,3 +12,14 @@ Každá položka: co jsem rozhodl, proč, a kde se to dá změnit.
 - **Žluté karty**: hráč s 3 žlutými (obecně „jedna do stopky“) dostane v Novinkách upozornění a v soupisce ⚠.
 - **Penalty**: kalibrace hlídá proměňování 74–80 % (cíl 77 %); naměřeno 77,5 %.
 - **Neověřeno**: pravidla FAČR pro žluté v nadstavbě a v poháru (viz design, sekce 12). Příprava v `discipline.postseason` a `discipline.cupSeparateCount`, zatím vypnuto.
+
+## Fáze 5 – ekonomika a vedení
+
+- **Všechna čísla ekonomiky jsou herní odhad** (`balance.json → economy`), laděný na vyrovnané hospodaření: typický klub ±10 % příjmů, platy ~55 % příjmů. Měřítko (mil. Kč ročně, průměr): 1. liga velikost 3 ~110, velikost 5 ~290; 2. liga ~12–30; 3. liga ~1,5–3.
+- **Kapacity stadionů** jsou odhad podle úrovně a velikosti klubu, ne skutečné kapacity (Slavia ~19 000, malé kluby 3. ligy ~1 000). Stadion s úrovněmi přijde ve fázi 7.
+- **Velké kluby platí víc** za stejnou kvalitu (násobič 0,8–1,7 podle velikosti), jinak by měly stovky milionů zisku.
+- **Sestupová klauzule** (plat −30 % po sestupu) je můj návrh – bez ní sestoupivší kluby prodělávaly ~60 % příjmů ročně.
+- **Smlouvy** se do fáze 6 prodlužují automaticky. Žádné vyjednávání, žádné odchody zadarmo.
+- **Licence**: k 31. 5. nesmí mít klub hráče záporný stav peněz, jinak −3 body v příští sezóně (počet je návrh).
+- **Cíle vedení**: favorit (1.–2. nejsilnější kádr) má cíl o 1 místo horší než své pořadí, ostatní o 2 místa. Pohár: index kola podle úrovně a velikosti (`board.goals`). Převod umístění na stupně a váhy poháru jsou návrh (`board`).
+- **Otevřená otázka**: má být finanční výsledek třetím cílem vedení? (design, sekce 13 a 14 o tom mluví; zadání zná jen ligu a pohár).

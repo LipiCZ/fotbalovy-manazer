@@ -204,6 +204,14 @@ export interface Player {
   career?: CareerSeason[];
   /** CEL at every monthly development tick (oldest first). */
   celHistory?: number[];
+  contract?: Contract;
+}
+
+export interface Contract {
+  /** Monthly wage in CZK. */
+  wage: number;
+  /** Last day of the contract (always 30 June). */
+  until: string;
 }
 
 export interface Fixture {

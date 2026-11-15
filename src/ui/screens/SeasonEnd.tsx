@@ -5,7 +5,10 @@ import { computeMovements } from '../../engine/game/transition.ts';
 import { overall } from '../../engine/players/rating.ts';
 import { getAppStore, useApp, useGame } from '../../state/store.ts';
 import { ClubLabel, clubOf, playerOf, PlayerLink } from '../components.tsx';
-import { num, seasonLabel } from '../format.ts';
+import { money, num, seasonLabel } from '../format.ts';
+import { evaluateSeason, wouldBeSacked } from '../../engine/game/board.ts';
+import { statements } from '../../engine/game/finance.ts';
+import type { Grade } from '../../engine/game/state.ts';
 
 const REASON: Record<string, string> = {
   promoted: 'postup',
@@ -15,6 +18,79 @@ const REASON: Record<string, string> = {
   regrouped: 'přeřazení do jiné skupiny',
   removed: 'B-tým vyřazen ze soutěží',
 };
+
+const GRADE_CLASS: Record<Grade, string> = { vynikající: 'good', úspěšná: 'good', přijatelná: '', neúspěšná: 'warn', katastrofa: 'bad' };
+
+/** Board evaluation (as it will be at the transition) and the season's accounts. */
+function SeasonReport() {
+  const { game, data, revision } = useGame();
+  const userClubId = game.userClubId as string;
+  const evaluation = useMemo(() => {
+    const mv = computeMovements(game, data).movements.find((m) => m.clubId === userClubId);
+    const down = mv?.to && mv.from ? (data.competitions.find((c) => c.id === mv.to)?.level ?? 0) > (data.competitions.find((c) => c.id === mv.from)?.level ?? 0) : false;
+    return evaluateSeason(game, data, down);
+  }, [game, data, userClubId, revision]);
+  const f = game.finances[userClubId];
+  const st = f ? statements(f) : null;
+  if (!evaluation || !st || !game.board) return null;
+  const sacked = wouldBeSacked([...game.board.grades, evaluation.overall], data);
+  return (
+    <section className="card grid cols-2">
+      <div>
+        <h3>Hodnocení vedení</h3>
+        <table className="data">
+          <tbody>
+            <tr>
+              <td>Liga – {game.board.goals.leagueLabel}</td>
+              <td className={GRADE_CLASS[evaluation.league]}>{evaluation.league} ({evaluation.leaguePosition}. místo)</td>
+            </tr>
+            <tr>
+              <td>{game.board.goals.cupLabel}</td>
+              <td className={GRADE_CLASS[evaluation.cup]}>{evaluation.cup}</td>
+            </tr>
+            <tr>
+              <td>
+                <strong>Celkem</strong>
+              </td>
+              <td className={GRADE_CLASS[evaluation.overall]}>
+                <strong>{evaluation.overall}</strong>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        {sacked && <p className="bad">Podle pravidel by vedení trenéra odvolalo (vyhazov přijde s kariérou trenéra ve fázi 8).</p>}
+      </div>
+      <div>
+        <h3>Hospodaření sezóny</h3>
+        <table className="data">
+          <tbody>
+            <tr>
+              <td>Výnosy</td>
+              <td className="num">{money(st.revenues.reduce((s, [, v]) => s + v, 0))}</td>
+            </tr>
+            <tr>
+              <td>Náklady</td>
+              <td className="num">{money(st.costs.reduce((s, [, v]) => s + v, 0))}</td>
+            </tr>
+            <tr>
+              <td>
+                <strong>Hospodářský výsledek</strong>
+              </td>
+              <td className={`num ${st.result < 0 ? 'bad' : 'good'}`}>
+                <strong>{money(st.result)}</strong>
+              </td>
+            </tr>
+            <tr>
+              <td>Peníze na účtu</td>
+              <td className="num">{money(f?.cash ?? 0)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="help">Odměny za konečné umístění se připíšou při přechodu do nové sezóny. Podrobné výkazy jsou na obrazovce Finance.</p>
+      </div>
+    </section>
+  );
+}
 
 export function SeasonEndScreen() {
   const { game, data, revision } = useGame();
@@ -68,6 +144,7 @@ export function SeasonEndScreen() {
           </p>
         )}
       </section>
+      {game.finished && <SeasonReport />}
       <div className="grid cols-3">
         <section className="card">
           <h3>Vítězové</h3>

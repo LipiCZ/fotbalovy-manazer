@@ -15,6 +15,8 @@ import {
   startCup,
 } from './advance.ts';
 import { seasonStart } from './calendar.ts';
+import { evaluateSeason, startBoardSeason } from './board.ts';
+import { book, ensureContracts, expectedRevenue, leaguePrize } from './finance.ts';
 import { academyIntake, exactAge, manageSquads, retirementChance } from './development.ts';
 import { barrageOutcomes, regularTable, seasonRngOf } from './postseason.ts';
 import { allowedGroups, canPlayIn, levelOfCompetition, membersOf, thirdLevelGroups, type Membership } from './pyramid.ts';
@@ -154,6 +156,23 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
   passTime(state, data, newStart, news);
   const rng = seasonRngOf(state).fork('transition');
 
+  // League prize money by final position, then the board's evaluation and the season's accounts.
+  for (const [compId, order] of Object.entries(standings) as [CompetitionId, string[]][]) {
+    const level = levelOfCompetition(data, compId);
+    order.forEach((id, i) => book(state, id, 'prize', leaguePrize(level, i + 1, order.length, balance), newStart, `odměna za ${i + 1}. místo`));
+  }
+  if (state.userClubId) {
+    const mv = movements.find((m) => m.clubId === state.userClubId);
+    const down = mv?.to && mv.from ? levelOfCompetition(data, mv.to) > levelOfCompetition(data, mv.from) : false;
+    const evaluation = evaluateSeason(state, data, down);
+    if (evaluation) {
+      record.evaluation = evaluation;
+      state.board?.grades.push(evaluation.overall);
+    }
+    const f = state.finances[state.userClubId];
+    if (f) record.finance = { season: { ...f.season }, cashEnd: f.cash };
+  }
+
   // Career archive, exceptional seasons, retirements.
   const pr = balance.development.potentialRaise;
   const retired = new Set<string>();
@@ -238,8 +257,32 @@ export function startNewSeason(state: GameState, data: GameData): NewsItem[] {
   news.push(...manageSquads(state, data, { date: newStart, leagueCelOf: leagueCelLookup(state, data), rng: rng.fork('squads') }));
   invalidateRuntime(state);
 
+  // New accounting season for every club; expiring contracts are renewed for now (negotiations in phase 6).
+  for (const club of data.clubs) {
+    const f = state.finances[club.id];
+    if (!f) continue;
+    f.season = {};
+    f.monthlyCash = [];
+    f.ticketPriceLocked = false;
+    f.pointDeduction = f.pendingDeduction;
+    f.pendingDeduction = 0;
+    f.expectedRevenue = expectedRevenue(state, data, club.id);
+    f.ticketPrice = balance.economy.ticketPrice.reference[`${levelOfCompetition(data, membership[club.id] ?? club.competitionId)}`];
+  }
+  state.transactions = [];
+  // Relegation clause: wages of relegated clubs drop.
+  const relegatedClubs = new Set(
+    movements.filter((m) => m.from && m.to && levelOfCompetition(data, m.to) > levelOfCompetition(data, m.from)).map((m) => m.clubId),
+  );
+  for (const p of state.players)
+    if (p.contract && relegatedClubs.has(p.clubId)) p.contract = { ...p.contract, wage: Math.round((p.contract.wage * (1 - balance.economy.wages.relegationCut)) / 500) * 500 };
+  const renewRng = rng.fork('renewals');
+  for (const p of state.players) if (p.contract && p.contract.until < newStart) delete p.contract;
+  ensureContracts(state, data, renewRng);
+
   state.competitions = buildCompetitions(state, data);
   startCup(state, data);
+  startBoardSeason(state, data);
   state.finished = false;
 
   if (state.user && state.userClubId) {

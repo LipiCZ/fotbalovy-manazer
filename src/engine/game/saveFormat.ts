@@ -6,6 +6,9 @@ import type { GameData } from '../data.ts';
 import { overall } from '../players/rating.ts';
 import { ATTRIBUTES, type Player } from '../types.ts';
 import { SAVE_VERSION, type GameState, type UserMatch } from './state.ts';
+import { initFinances } from './finance.ts';
+import { startBoardSeason } from './board.ts';
+import { Rng } from '../rng.ts';
 
 export const SAVE_FORMAT = 'fotbalovy-manazer-save';
 
@@ -68,14 +71,19 @@ export function parseSave(input: string | unknown, data: GameData): { save: Save
     }
   }
   if (!isObj(raw) || raw.format !== SAVE_FORMAT) throw new SaveError('Tohle není uložená hra Fotbalového manažera CZ.');
-  if (raw.version !== SAVE_VERSION && raw.version !== 1)
+  if (raw.version !== SAVE_VERSION && raw.version !== 1 && raw.version !== 2)
     throw new SaveError(`Uložená hra má verzi ${String(raw.version)}, tahle verze hry umí načíst verze 1–${SAVE_VERSION}.`);
   if (!isObj(raw.game)) throw new SaveError('Uložená hra je poškozená: chybí stav hry.');
   const warnings: string[] = [];
   if (raw.version === 1) {
     raw.game = migrateV1(raw.game, data);
-    raw.version = SAVE_VERSION;
+    raw.version = 2;
     warnings.push('Uložená hra pochází ze starší verze hry a byla převedena. MOL Cup se rozehraje až od příští sezóny.');
+  }
+  if (raw.version === 2) {
+    raw.game = migrateV2(raw.game as unknown as GameState, data);
+    raw.version = SAVE_VERSION;
+    warnings.push('Uložená hra byla převedena na verzi s ekonomikou: kluby dostaly výchozí finance a hráči smlouvy.');
   }
   const game = raw.game as Record<string, unknown>;
 
@@ -88,6 +96,7 @@ export function parseSave(input: string | unknown, data: GameData): { save: Save
   if (!isObj(game.membership) || !Object.entries(game.membership).every(([id, comp]) => clubIds.has(id) && data.competitions.some((c) => c.id === comp)))
     problems.push('příslušnost klubů k soutěžím');
   if (!Array.isArray(game.stages) || !Array.isArray(game.history)) problems.push('nadstavba nebo historie');
+  if (!isObj(game.finances) || !Array.isArray(game.transactions)) problems.push('finance');
 
   const playerIds = new Set<string>();
   if (!Array.isArray(game.players) || game.players.length === 0) problems.push('hráči');
@@ -163,5 +172,13 @@ function migrateV1(game: Record<string, unknown>, data: GameData): GameState {
     void _reports;
     user = { ...rest, training: rest.training ?? 'assistant', matches };
   }
-  return { ...g, version: SAVE_VERSION, membership, players, stages: [], cup: null, history: [], user } as GameState;
+  return { ...g, version: 2, membership, players, stages: [], cup: null, history: [], user } as unknown as GameState;
+}
+
+/** Version 2 (phase 4) -> version 3: finances, contracts, board goals. */
+function migrateV2(game: GameState, data: GameData): GameState {
+  const g = { ...game, version: SAVE_VERSION, finances: {}, transactions: [], board: null } as GameState;
+  initFinances(g, data, new Rng(`${g.seed}/migrate-v3`));
+  if (g.userClubId) startBoardSeason(g, data);
+  return g;
 }

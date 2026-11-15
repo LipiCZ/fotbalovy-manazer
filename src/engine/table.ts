@@ -78,8 +78,11 @@ export function computeTable(
   results: readonly MatchResult[],
   rules: TableRules,
   lotSeed = 'lot',
+  /** Points deducted (e.g. licence, design section 13). */
+  deductions: Readonly<Record<string, number>> = {},
 ): TableRow[] {
   const rows = accumulate(clubIds, results, rules);
+  for (const r of rows) r.points -= deductions[r.clubId] ?? 0;
   const byId = new Map(rows.map((r) => [r.clubId, r]));
 
   const value = (crit: TiebreakCriterion, id: string, h2h: Map<string, MiniStats> | undefined): number => {

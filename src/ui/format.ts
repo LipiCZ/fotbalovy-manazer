@@ -29,3 +29,17 @@ export function minuteLabel(minute: number, added?: number): string {
 export function plural(n: number, one: string, few: string, many: string): string {
   return n === 1 ? one : n >= 2 && n <= 4 ? few : many;
 }
+
+/** "12,3 mil. Kč", "850 tis. Kč", "−1,2 mil. Kč" */
+export function money(v: number): string {
+  const sign = v < 0 ? '−' : '';
+  const a = Math.abs(v);
+  if (a >= 1_000_000) return `${sign}${(a / 1_000_000).toFixed(a >= 100_000_000 ? 0 : 1).replace('.', ',')} mil. Kč`;
+  if (a >= 1_000) return `${sign}${Math.round(a / 1_000)} tis. Kč`;
+  return `${sign}${Math.round(a)} Kč`;
+}
+
+/** "6 752" */
+export function thousands(v: number): string {
+  return Math.round(v).toLocaleString('cs-CZ');
+}

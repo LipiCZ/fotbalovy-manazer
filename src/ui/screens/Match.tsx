@@ -3,7 +3,7 @@ import type { MatchEvent, MatchReport, Side } from '../../engine/match/types.ts'
 import { POSITION_LABEL_CS } from '../../engine/types.ts';
 import { getAppStore, useGame } from '../../state/store.ts';
 import { clubOf, playerOf, PlayerLink, RatingBadge, shortName } from '../components.tsx';
-import { formatDate, minuteLabel, num } from '../format.ts';
+import { formatDate, minuteLabel, num, thousands } from '../format.ts';
 
 function StatLine({ label, home, away, format = (v: number) => String(v) }: { label: string; home: number; away: number; format?: (v: number) => string }) {
   const total = home + away || 1;
@@ -45,6 +45,15 @@ function sameRound(game: GameState, date: string, homeId: string): MatchSummary[
   return list.filter((r) => r.date === date && r.homeId !== homeId);
 }
 
+function findSummary(game: GameState, date: string, homeId: string): MatchSummary | undefined {
+  const all: MatchSummary[] = [
+    ...game.competitions.flatMap((c) => c.results),
+    ...game.stages.flatMap((s) => s.results),
+    ...(game.cup?.rounds.flatMap((r) => r.ties.flatMap((t) => (t.result ? [t.result] : []))) ?? []),
+  ];
+  return all.find((r) => r.date === date && r.homeId === homeId);
+}
+
 export function MatchScreen({ reportIndex }: { reportIndex: number }) {
   const { game, data } = useGame();
   const store = getAppStore().getState();
@@ -60,6 +69,7 @@ export function MatchScreen({ reportIndex }: { reportIndex: number }) {
   };
   const keyEvents = (side: Side) => report.events.filter((e) => e.side === side && ['goal', 'penaltyGoal', 'red', 'secondYellow'].includes(e.type));
   const roundResults = sameRound(game, match.date, report.homeId);
+  const summaryOf = findSummary(game, match.date, report.homeId);
   const s = report.stats;
 
   const ratingsTable = (side: Side) => {
@@ -129,6 +139,11 @@ export function MatchScreen({ reportIndex }: { reportIndex: number }) {
             </div>
           )}
           {home?.city} · {match.label} · {formatDate(match.date)}
+          {summaryOf && summaryOf.attendance !== undefined && (
+            <div>
+              Návštěva {thousands(summaryOf.attendance)} ({thousands(summaryOf.capacity ?? 0)})
+            </div>
+          )}
         </div>
         <div className="scorers">
           {(['home', 'away'] as const).map((side) => (

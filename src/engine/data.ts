@@ -207,10 +207,60 @@ export interface Balance {
     assistant: { hardIfDaysToMatch: number; lightIfDaysToMatch: number };
   };
   calibration: { penaltyConversion: { target: number; tolerance: number } };
+  economy: EconomyBalance;
+  board: {
+    grades: string[];
+    gradeScore: Record<string, number>;
+    leaguePlacesBetterThanTarget: Record<string, number>;
+    cupRoundsBeyondTarget: Record<string, number>;
+    weights: { league: { success: number; failure: number }; cup: { success: number; failure: number } };
+    sacking: { onCatastrophe: boolean; consecutiveFailures: number };
+    goals: { leagueSlack: number; cupTargetRoundByLevelAndSize: Record<`${Level}`, Record<`${ClubSize}`, number>> };
+  };
   rotation: { minCondition: number };
 }
 
 export type TrainingIntensity = 'light' | 'normal' | 'hard';
+
+type ByLevel<T> = Record<`${Level}`, T>;
+type BySize<T> = Record<`${ClubSize}`, T>;
+
+export interface EconomyBalance {
+  attendance: {
+    baseByLevelAndSize: ByLevel<BySize<number>>;
+    reserveTeamFactor: number;
+    capacityByLevelAndSize: ByLevel<BySize<number>>;
+    reserveCapacity: number;
+    positionEffect: number;
+    priceElasticity: number;
+    noise: number;
+    seasonTicketShare: number;
+    seasonTicketDiscount: number;
+  };
+  ticketPrice: { reference: ByLevel<number>; minFactor: number; maxFactor: number };
+  matchday: { merchPerFan: ByLevel<number>; vipPerMatchBySize: ByLevel<BySize<number>>; costPerFan: number; fixedCost: ByLevel<number> };
+  sponsors: { byLevelAndSize: ByLevel<BySize<number>>; topHalfBonus: number; reserveTeam: number };
+  central: { byLevel: ByLevel<number> };
+  prizeMoney: { league: ByLevel<[number, number]>; cupPerRoundReached: number[]; cupWinner: number };
+  wages: {
+    baseMonthly: ByLevel<number>;
+    perCelPoint: number;
+    minMonthly: ByLevel<number>;
+    reserveFactor: number;
+    sizeFactor: BySize<number>;
+    academyMonthly: ByLevel<number>;
+    winBonusShare: number;
+    relegationCut: number;
+  };
+  fixedCosts: { staff: number; stadium: number; academy: number; other: number };
+  stadium: { valuePerSeat: ByLevel<number>; depreciationYears: number };
+  initialCashShare: number;
+  loans: { maxShare: number; annualRate: number };
+  owner: { aiTopUpTo: number };
+  license: { date: string; pointDeduction: number };
+  budget: { wageCapShare: number; transferShare: number; investmentShare: number; maxShift: number };
+  contracts: { years: [number, number]; youthYears: [number, number] };
+}
 export type PositionGroup = 'GK' | 'DF' | 'MF' | 'FW';
 
 export interface InjuryType {
@@ -501,7 +551,7 @@ export function validateGameData(raw: RawGameData): GameData {
     for (const key of [
       'rating', 'attributes', 'squad', 'strength', 'age', 'profile', 'potential', 'simpleResults',
       'match', 'condition', 'form', 'injuries', 'discipline', 'ratings', 'ai',
-      'development', 'academy', 'squads', 'retirement', 'training', 'rotation', 'calibration',
+      'development', 'academy', 'squads', 'retirement', 'training', 'rotation', 'calibration', 'economy', 'board',
     ])
       if (!isObj(raw.balance[key])) problems.push(`balance.${key}: chybí`);
     if (problems.length === 0) {

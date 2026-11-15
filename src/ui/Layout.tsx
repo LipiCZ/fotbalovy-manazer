@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { nextUserMatch } from '../engine/game/advance.ts';
 import { getAppStore, useApp, useGame, type Screen } from '../state/store.ts';
 import { clubOf } from './components.tsx';
-import { formatDate, seasonLabel } from './format.ts';
+import { formatDate, money, seasonLabel } from './format.ts';
+import { runwayMonths } from '../engine/game/finance.ts';
 import { clubAccent } from './theme.ts';
 
 const NAV: { label: string; screen: Screen }[] = [
@@ -10,6 +11,7 @@ const NAV: { label: string; screen: Screen }[] = [
   { label: 'Soupiska', screen: { name: 'squad' } },
   { label: 'Taktika', screen: { name: 'tactics' } },
   { label: 'Soutěže', screen: { name: 'competitions' } },
+  { label: 'Finance', screen: { name: 'finance' } },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -20,6 +22,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const { accent, onAccent } = club ? clubAccent(club) : { accent: '#1f6f43', onAccent: '#fff' };
   const store = getAppStore().getState();
   const next = nextUserMatch(game, data);
+  const finance = game.userClubId ? game.finances[game.userClubId] : undefined;
+  const runway = finance ? runwayMonths(finance) : null;
 
   return (
     <div className="app" style={{ ['--accent' as string]: accent, ['--on-accent' as string]: onAccent }}>
@@ -27,6 +31,12 @@ export function Layout({ children }: { children: ReactNode }) {
         <span className="club">{club?.name}</span>
         <span>Sezóna {seasonLabel(game.seasonYear)}</span>
         <span>{formatDate(game.date)}</span>
+        {finance && (
+          <button className="link" style={{ color: 'inherit' }} onClick={() => store.navigate({ name: 'finance' })} title="Peníze na účtu a na kolik měsíců vydrží">
+            💰 {money(finance.cash)}
+            {runway !== null && runway < 12 ? ` · vydrží ${Math.floor(runway)} měs.` : ''}
+          </button>
+        )}
         <span className="spacer" />
         <button onClick={() => store.setSaveDialog(true)}>Uložit / načíst</button>
         {!game.finished && (

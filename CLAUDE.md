@@ -22,7 +22,7 @@ src/engine/      čistá herní logika – žádný React, DOM ani prohlížečo
   lineup.ts      vhodnost pozice, optimální sestava (maďarská metoda), taktika AI
   game/          herní stav (GameState) a smyčka po hracích dnech (advance.ts), kalendář, sestava hráče, statistiky,
                  vývoj hráčů a akademie (development.ts), nadstavba a baráž (postseason.ts), MOL Cup (cup.ts),
-                 pravidla pyramidy (pyramid.ts), přechod sezóny (transition.ts), formát uložení
+                 pravidla pyramidy (pyramid.ts), přechod sezóny (transition.ts), finance (finance.ts), vedení (board.ts), formát uložení
   season.ts      simulace celé sezóny bez manažera (nad stejnou smyčkou jako hra)
 src/state/       Zustand store (navigace, akce), IndexedDB úložiště
 src/ui/          obrazovky (screens/) a komponenty (React); styles.css, akcentová barva klubu v theme.ts
@@ -55,6 +55,7 @@ Směr závislostí: `ui → state → engine → data`. Engine nikdy neimportuje
 - Příslušnost klubů k soutěžím je v `GameState.membership` (mění se postupy a sestupy); `clubs.json → competitionId` je jen start.
 - Akademie: hráči s `academy: true` (nehrají seniorské zápasy). Atributy jsou po vývoji desetinná čísla (UI zaokrouhluje).
 - Mezipaměť výběru sestav (`runtimeOf(state).selection`) se musí zneplatnit po každé změně atributů nebo kádrů (`invalidateRuntime`), jinak se rozejde uložená a neuložená hra.
+- Peníze: každý pohyb jde přes `book()` (finance.ts) – sezónní součty po kategoriích; u klubu hráče i seznam transakcí. Částky v Kč.
 - Kluby mají `id` jako slug (`slavia-praha`, `slavia-praha-b`). B/C týmy mají `parentClubId`.
 - Pozice: kódy `GK CB LB RB DM CM AM LM RM LW RW ST`, v UI česky (BR SO LO PO DZ SZ OZ LZ PZ LK PK ÚT).
 
@@ -102,4 +103,5 @@ Po změně čísel v `balance.json → match` vždy pusť `npm run calibrate` (s
 | 3 | UI (Domů, Soupiska, Profil, Taktika, Zápas, Soutěže, Konec sezóny), kalendář, ukládání – MVP | hotovo |
 | 4 | vývoj hráčů, akademie, B-týmy, nadstavba, baráž, MOL Cup, přechod sezóny | hotovo |
 | 4b | doplňky z CSM: konce kariér podle pozic, typy zranění a návrat, únava podle věku, varování na 3 žluté, kalibrace penalt | hotovo |
+| 5 | ekonomika (finance všech klubů, smlouvy, vstupné, výkazy, úvěr, licence), cíle a hodnocení vedení | hotovo |
 | 5–8 | viz `docs/design.md`, sekce 16 | – |

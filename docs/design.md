@@ -474,6 +474,15 @@ Hra vždy ukazuje dvě čísla: peníze na účtu (z nich se platí výplaty) a 
 
 Nabídku jde odmítnout a počkat na lepší.
 
+**Doplněno ve fázi 5 (implementace):**
+
+- Finance mají všechny kluby (AI je potřebuje ve fázi 6 k přestupům); jednotlivé transakce se ukládají jen pro klub hráče, AI kluby mají součty po kategoriích. B-tým a akademii platí A-tým.
+- **Příjmy:** vstupné (návštěva podle velikosti klubu, umístění, ceny a kapacity stadionu; 35 % permanentky se slevou 30 %), fanshop a občerstvení, VIP, sponzoři a centrální příjmy (měsíčně), odměny za konečné umístění a za kola MOL Cupu. **Náklady:** platy (podle CEL nad průměrem soutěže a velikosti klubu), prémie za výhru a remízu, štáb, provoz stadionu, akademie a B-tým, pořadatelství, odpisy stadionu, úroky.
+- Všechna měřítka jsou herní odhad laděný tak, aby typický klub hospodařil zhruba vyrovnaně a platy dělaly ~55 % příjmů (`npm run calibrate:world` hlídá hospodaření po úrovních). Sestupová klauzule: po sestupu plat −30 %.
+- **Smlouvy** dostali všichni hráči na začátku hry (1–4 roky, plat podle kvality); do fáze 6 se končící smlouvy automaticky prodlužují.
+- **Vstupné** se nastavuje jednou za sezónu, před prvním domácím zápasem. **Úvěr** do 30 % očekávaných ročních příjmů, 7 % ročně. AI klubům chybějící peníze doplní majitel; klubu hráče hrozí při záporném stavu k 31. 5. odpočet 3 bodů v příští sezóně (licence).
+- **Cíle vedení** (1. 7.): liga podle pořadí síly kádru v soutěži (favorit do 2.–3. místa, ostatní o 2 místa hůř), pohár podle úrovně a velikosti. Hodnocení na konci sezóny 5 stupni, pohár nesymetricky; pravidlo vyhazovu se zatím jen zobrazuje (vyhazov ve fázi 8).
+
 **Výkazy v sezónním reportu (mega zjednodušené):**
 
 - Výsledovka: tržby (vstupné, sponzoři, liga a poháry, prodej hráčů), náklady (platy, hráčské smlouvy, provoz, akademie, ostatní), výsledek.
@@ -549,7 +558,7 @@ fotbalovy-manazer/
 | 3 | základní UI: Domů, Soupiska, Profil, Taktika, rychlý zápas, Soutěže, Pokračovat, ukládání | **MVP: odehraju celou sezónu** (hotovo) |
 | 4 | vývoj hráčů, stárnutí, mládež, B-týmy, přechod sezóny, postupy, nadstavba, baráže, MOL Cup | odehraju 5 sezón za sebou (hotovo) |
 | 4b | doplňky inspirované CSM k hotovým částem: konce kariér podle pozic, zranění podle typů a návrat po zranění, únava podle věku, upozornění na 3 žluté, kalibrace penalt | `calibrate` a `calibrate:world` projdou (hotovo) |
-| 5 | ekonomika: rozpočet, platy, vstupné, transakce, výkazy, cash flow; cíle vedení a jejich hodnocení | sezónní report s výkazy a hodnocením sezóny |
+| 5 | ekonomika: rozpočet, platy, vstupné, transakce, výkazy, cash flow; cíle vedení a jejich hodnocení | sezónní report s výkazy a hodnocením sezóny (hotovo) |
 | 6 | přestupy, smlouvy, přestupní listina, volní hráči, skauting, živý trh AI | koupím, prodám a najdu talent |
 | 7 | stadion, město, investor, vztahy, média, humor | vytáhnu klub o ligu výš |
 | 8 | živý režim zápasu, kariéra trenéra, ceny sezóny, ladění | kompletní hra |

@@ -723,7 +723,16 @@
       "_belowIs": "katastrofa"
     },
     "weights": {"league": {"success": 1.0, "failure": 1.0}, "cup": {"success": 0.6, "failure": 0.2}},
-    "sacking": {"onCatastrophe": true, "consecutiveFailures": 2}
+    "sacking": {"onCatastrophe": true, "consecutiveFailures": 2},
+    "goals": {
+      "_note": "Cíl v lize podle síly kádru v soutěži (pořadí podle síly) posunutý podle velikosti klubu; cíl v poháru podle úrovně (index kola: 0 = 1. kolo …). Návrh.",
+      "leagueSlack": 2,
+      "cupTargetRoundByLevelAndSize": {
+        "1": {"1": 1, "2": 2, "3": 2, "4": 3, "5": 4},
+        "2": {"1": 0, "2": 1, "3": 1, "4": 1, "5": 2},
+        "3": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 1}
+      }
+    }
   },
   "transfers": {
     "_note": "Přestupy (design, sekce 8), fáze 6. Doplňky inspirované CSM; čísla jsou NÁVRH (doplněno, ne ze zadání).",
@@ -737,5 +746,116 @@
     "minLeadership": 70,
     "formDropDamping": 0.25,
     "moraleDropDamping": 0.25
+  },
+  "economy": {
+    "_note": "Ekonomika klubu (design, sekce 13). Všechny částky v Kč, ročně, pokud není uvedeno jinak. Rozpočty jsou herní odhad podle úrovně soutěže a velikosti klubu (design, sekce 1: ne reálná čísla). Kalibrace: npm run calibrate:world (hospodaření klubů).",
+    "attendance": {
+      "_note": "Průměrná návštěva při referenční ceně: základ podle úrovně × velikost; pak forma (umístění), cena (pružnost) a kapacita stadionu.",
+      "baseByLevelAndSize": {
+        "1": {"1": 3000, "2": 4500, "3": 6000, "4": 9000, "5": 15000},
+        "2": {"1": 800, "2": 1200, "3": 1800, "4": 3000, "5": 5000},
+        "3": {"1": 250, "2": 400, "3": 600, "4": 900, "5": 1400}
+      },
+      "reserveTeamFactor": 0.15,
+      "capacityByLevelAndSize": {
+        "1": {"1": 5000, "2": 6500, "3": 9000, "4": 12000, "5": 19000},
+        "2": {"1": 2500, "2": 3500, "3": 5000, "4": 8000, "5": 12000},
+        "3": {"1": 1000, "2": 1500, "3": 2500, "4": 4000, "5": 6000}
+      },
+      "reserveCapacity": 1500,
+      "positionEffect": 0.25,
+      "priceElasticity": 0.6,
+      "noise": 0.1,
+      "seasonTicketShare": 0.35,
+      "seasonTicketDiscount": 0.3
+    },
+    "ticketPrice": {
+      "_note": "Referenční cena vstupenky na běžný zápas (Kč). Hráč ji nastavuje jednou za sezónu (design, sekce 14), min–max násobek reference.",
+      "reference": {"1": 300, "2": 130, "3": 70},
+      "minFactor": 0.4,
+      "maxFactor": 2.5
+    },
+    "matchday": {
+      "_note": "Na domácí zápas: útrata za fanshop a občerstvení na diváka, VIP podle velikosti; náklady na pořadatelství.",
+      "merchPerFan": {"1": 60, "2": 25, "3": 10},
+      "vipPerMatchBySize": {
+        "1": {"1": 150000, "2": 250000, "3": 400000, "4": 800000, "5": 2000000},
+        "2": {"1": 20000, "2": 40000, "3": 60000, "4": 100000, "5": 200000},
+        "3": {"1": 0, "2": 5000, "3": 10000, "4": 20000, "5": 40000}
+      },
+      "costPerFan": 20,
+      "fixedCost": {"1": 200000, "2": 30000, "3": 5000}
+    },
+    "sponsors": {
+      "_note": "Roční příjem od sponzorů (hlavní, dresový, město) podle úrovně a velikosti, vyplácí se měsíčně; po umístění v horní polovině +bonus.",
+      "byLevelAndSize": {
+        "1": {"1": 25000000, "2": 35000000, "3": 50000000, "4": 75000000, "5": 150000000},
+        "2": {"1": 4000000, "2": 6000000, "3": 9000000, "4": 13000000, "5": 20000000},
+        "3": {"1": 800000, "2": 1200000, "3": 2000000, "4": 3500000, "5": 5000000}
+      },
+      "topHalfBonus": 0.1,
+      "reserveTeam": 0
+    },
+    "central": {
+      "_note": "Centrální příjmy soutěže (TV, licence) na klub a rok.",
+      "byLevel": {"1": 22000000, "2": 4500000, "3": 400000}
+    },
+    "prizeMoney": {
+      "_note": "Odměny za konečné umístění (lineárně od 1. po poslední místo) a za kola MOL Cupu.",
+      "league": {"1": [40000000, 4000000], "2": [6000000, 800000], "3": [800000, 100000]},
+      "cupPerRoundReached": [200000, 400000, 1000000, 2000000, 4000000, 7000000],
+      "cupWinner": 10000000
+    },
+    "wages": {
+      "_note": "Měsíční plat hráče: základ úrovně × růst podle CEL nad průměrem soutěže. Mladí a B-tým méně. Kalibrováno tak, aby platy dělaly ~60 % příjmů typického klubu.",
+      "baseMonthly": {"1": 270000, "2": 38000, "3": 6500},
+      "perCelPoint": 0.08,
+      "minMonthly": {"1": 40000, "2": 8000, "3": 1500},
+      "reserveFactor": 0.35,
+      "academyMonthly": {"1": 3000, "2": 1500, "3": 500},
+      "winBonusShare": 0.06,
+      "sizeFactor": {"1": 0.8, "2": 0.9, "3": 1.0, "4": 1.2, "5": 1.7},
+      "relegationCut": 0.3,
+      "_relegationNote": "Sestupová klauzule: po sestupu klesne hráčům klubu plat o relegationCut (návrh, běžná praxe ve smlouvách)."
+    },
+    "fixedCosts": {
+      "_note": "Podíl očekávaných příjmů na provoz: štáb, stadion, akademie a B-tým, ostatní (měsíčně rozpočítané).",
+      "staff": 0.08,
+      "stadium": 0.07,
+      "academy": 0.08,
+      "other": 0.04
+    },
+    "stadium": {
+      "_note": "Účetní hodnota stadionu (dlouhodobý hmotný majetek) na místo a doba odpisování.",
+      "valuePerSeat": {"1": 30000, "2": 12000, "3": 3000},
+      "depreciationYears": 30
+    },
+    "initialCashShare": 0.25,
+    "loans": {
+      "_note": "Úvěr pro klub hráče: nejvýš podíl očekávaných ročních příjmů, roční úrok, splácení libovolně.",
+      "maxShare": 0.3,
+      "annualRate": 0.07
+    },
+    "owner": {
+      "_note": "AI kluby: když dojdou peníze, majitel doplní hotovost (aby AI nezkrachovala). Klub hráče: varování a licence.",
+      "aiTopUpTo": 0.05
+    },
+    "license": {
+      "_note": "K tomuto datu nesmí mít klub hráče záporný stav peněz (závazky po splatnosti), jinak odpočet bodů v příští sezóně (design, sekce 13).",
+      "date": "05-31",
+      "pointDeduction": 3
+    },
+    "budget": {
+      "_note": "Rozpočet od vedení 1. 7. (design, sekce 13): platový strop a rozpočty jako podíl očekávaných příjmů; přesun mezi nimi nejvýš maxShift.",
+      "wageCapShare": 0.62,
+      "transferShare": 0.1,
+      "investmentShare": 0.05,
+      "maxShift": 0.2
+    },
+    "contracts": {
+      "_note": "Délka smluv vygenerovaných na začátku hry (roky); konec vždy 30. 6. Vyjednávání ve fázi 6.",
+      "years": [1, 4],
+      "youthYears": [2, 3]
+    }
   }
 }

@@ -137,6 +137,15 @@ try {
     await shot('12-mol-cup');
   });
 
+  await check('finance: výkazy, graf a cíle vedení', async () => {
+    await page.getByRole('navigation').getByRole('button', { name: 'Finance' }).click();
+    await page.getByRole('heading', { name: 'Výsledovka sezóny (zjednodušená)' }).waitFor();
+    await page.getByLabel('graf peněz').locator('svg').first().waitFor();
+    await shot('16-finance');
+    await page.getByRole('navigation').getByRole('button', { name: 'Konec sezóny' }).click();
+    await page.getByRole('heading', { name: 'Hodnocení vedení' }).waitFor();
+  });
+
   await check('nová sezóna a přesun dorostence do A-týmu', async () => {
     await page.getByRole('navigation').getByRole('button', { name: 'Konec sezóny' }).click();
     await page.getByRole('button', { name: /Začít sezónu 2027\/28/ }).click();

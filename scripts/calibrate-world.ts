@@ -63,6 +63,11 @@ if (!isMainThread) {
     check(`průměrný věk se za ${s + 1} sezón posunul o ${n(ageDrift)} roku (max ±1,5)`, Math.abs(ageDrift) <= 1.5, s <= strictUntil);
     check(`POT 85+ po ${s + 1} sezónách: ${n(avg(s, (m) => m.pot85))} (max 6)`, avg(s, (m) => m.pot85) <= 6, s <= strictUntil);
   }
+  for (const lvl of [1, 2, 3] as const) {
+    const share = avg(strictUntil, (m) => m.resultShare[lvl]);
+    check(`hospodaření ${lvl}. ligy po ${strictUntil + 1} sezónách: výsledek ${n(100 * share)} % příjmů (odhad: −20 až +20 %)`, Math.abs(share) <= 0.2, false);
+  }
+  check(`AI kluby s vkladem majitele: ${n(100 * avg(strictUntil, (m) => m.ownerBailouts))} % (odhad: do 25 %)`, avg(strictUntil, (m) => m.ownerBailouts) <= 0.25, false);
   const limits = data.balance.squads.byLevel;
   const minLimit = Math.min(...Object.values(limits).map((l) => l.min));
   const maxLimit = Math.max(...Object.values(limits).map((l) => l.max));
